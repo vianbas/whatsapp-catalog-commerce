@@ -4,6 +4,7 @@ import { Pencil, Plus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DeleteProductButton } from "@/components/delete-product-button";
 import {
   Table,
   TableBody,
@@ -55,7 +56,7 @@ export default async function AdminProductsPage() {
               <TableHead>Price</TableHead>
               <TableHead>Stock</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-0 text-right">Edit</TableHead>
+              <TableHead className="w-0 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -84,14 +85,17 @@ export default async function AdminProductsPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button asChild variant="ghost" size="icon-sm">
-                      <Link
-                        href={`/admin/products/${product.id}/edit`}
-                        aria-label={`Edit ${product.name}`}
-                      >
-                        <Pencil className="size-4" />
-                      </Link>
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button asChild variant="ghost" size="icon-sm">
+                        <Link
+                          href={`/admin/products/${product.id}/edit`}
+                          aria-label={`Edit ${product.name}`}
+                        >
+                          <Pencil className="size-4" />
+                        </Link>
+                      </Button>
+                      <DeleteProductButton id={product.id} name={product.name} />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

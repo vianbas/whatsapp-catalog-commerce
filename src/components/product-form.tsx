@@ -56,8 +56,13 @@ export function ProductForm({
 }: {
   categories: Pick<Category, "id" | "name">[]
   defaultValues?: Partial<ProductInput>
-  /** Wire to a Server Action in a later step. Defaults to a no-op preview. */
-  onSubmit?: (values: ProductInput) => Promise<void> | void
+  /**
+   * Server Action that persists the product. On success it redirects (so this
+   * promise never resolves); on failure it returns an `{ error }` to display.
+   */
+  onSubmit?: (
+    values: ProductInput
+  ) => Promise<{ error?: string } | void> | { error?: string } | void
   submitLabel?: string
 }) {
   const [status, setStatus] = React.useState<string | null>(null)
@@ -69,12 +74,16 @@ export function ProductForm({
 
   async function handleSubmit(values: ProductInput) {
     setStatus(null)
-    if (onSubmit) {
-      await onSubmit(values)
+    if (!onSubmit) {
+      setStatus("No save handler is configured.")
       return
     }
-    // Foundation step: persistence is not wired yet.
-    setStatus("Validated. Saving is not wired up in this step yet.")
+    try {
+      const result = await onSubmit(values)
+      if (result?.error) setStatus(result.error)
+    } catch {
+      setStatus("Something went wrong while saving. Please try again.")
+    }
   }
 
   return (
@@ -266,7 +275,7 @@ export function ProductForm({
             {submitLabel}
           </Button>
           {status && (
-            <span className="text-muted-foreground text-sm">{status}</span>
+            <span className="text-destructive text-sm">{status}</span>
           )}
         </div>
       </form>
