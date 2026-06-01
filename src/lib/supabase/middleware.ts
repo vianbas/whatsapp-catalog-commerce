@@ -11,11 +11,23 @@ import { NextResponse, type NextRequest } from "next/server"
  * cookies are actually sent to the browser.
  */
 export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request })
+  const response = NextResponse.next({ request })
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  // Supabase not configured yet (e.g. no .env.local). Don't construct a client
+  // — it would throw on every request. Let requests through untouched; auth and
+  // the admin gate simply aren't active until credentials are provided.
+  if (!url || !anonKey) {
+    return response
+  }
+
+  let sessionResponse = response
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    anonKey,
     {
       cookies: {
         getAll() {
@@ -25,9 +37,9 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           )
-          response = NextResponse.next({ request })
+          sessionResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
+            sessionResponse.cookies.set(name, value, options)
           )
         },
       },
@@ -42,11 +54,11 @@ export async function updateSession(request: NextRequest) {
 
   const isAdminRoute = request.nextUrl.pathname.startsWith("/admin")
   if (!user && isAdminRoute) {
-    const url = request.nextUrl.clone()
-    url.pathname = "/login"
-    url.searchParams.set("redirectedFrom", request.nextUrl.pathname)
-    return NextResponse.redirect(url)
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = "/login"
+    redirectUrl.searchParams.set("redirectedFrom", request.nextUrl.pathname)
+    return NextResponse.redirect(redirectUrl)
   }
 
-  return response
+  return sessionResponse
 }
