@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { ProductForm } from "@/components/product-form";
+import { updateProduct } from "@/app/admin/products/actions";
 import { createClient } from "@/lib/supabase/server";
 import type { ProductInput } from "@/lib/validations/product";
 import type { Category, Product } from "@/lib/types";
@@ -73,6 +74,7 @@ export default async function EditProductPage({
       <ProductForm
         categories={categories}
         defaultValues={defaults}
+        onSubmit={updateProduct.bind(null, product.id)}
         submitLabel="Save changes"
       />
     </div>

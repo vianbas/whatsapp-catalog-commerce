@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { ProductForm } from "@/components/product-form";
+import { createProduct } from "@/app/admin/products/actions";
 import { createClient } from "@/lib/supabase/server";
 import type { Category } from "@/lib/types";
 
@@ -38,7 +39,11 @@ export default async function NewProductPage() {
         </h1>
       </div>
 
-      <ProductForm categories={categories} submitLabel="Create product" />
+      <ProductForm
+        categories={categories}
+        onSubmit={createProduct}
+        submitLabel="Create product"
+      />
     </div>
   );
 }
