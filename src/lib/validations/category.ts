@@ -10,8 +10,12 @@ export const categorySchema = z.object({
     .max(120)
     .regex(SLUG_PATTERN, "Use lowercase letters, numbers and hyphens"),
   description: z.string().trim().max(2000).optional().or(z.literal("")),
-  is_active: z.boolean().default(true),
-  sort_order: z.coerce.number().int().min(0).default(0),
+  // Kept free of coerce/.default() so the schema's input and output types match
+  // — required for React Hook Form's zodResolver to type cleanly. Defaults are
+  // supplied by the form (see CategoryFormDialog) and the number input converts
+  // its string value at the boundary.
+  is_active: z.boolean(),
+  sort_order: z.number().int().min(0),
 })
 
 export type CategoryInput = z.infer<typeof categorySchema>

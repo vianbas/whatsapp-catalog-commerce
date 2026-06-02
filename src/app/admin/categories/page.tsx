@@ -9,6 +9,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CategoryFormDialog } from "@/components/category-form-dialog";
+import { DeleteCategoryButton } from "@/components/delete-category-button";
 import { createClient } from "@/lib/supabase/server";
 import type { Category } from "@/lib/types";
 
@@ -33,11 +35,14 @@ export default async function AdminCategoriesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Categories</h1>
-        <p className="text-muted-foreground text-sm">
-          Group products for the storefront filter.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Categories</h1>
+          <p className="text-muted-foreground text-sm">
+            Group products for the storefront filter.
+          </p>
+        </div>
+        <CategoryFormDialog />
       </div>
 
       <div className="rounded-lg border">
@@ -48,16 +53,17 @@ export default async function AdminCategoriesPage() {
               <TableHead>Slug</TableHead>
               <TableHead>Order</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="w-0 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {categories.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={4}
+                  colSpan={5}
                   className="text-muted-foreground py-10 text-center text-sm"
                 >
-                  No categories yet.
+                  No categories yet. Create your first one.
                 </TableCell>
               </TableRow>
             ) : (
@@ -74,6 +80,15 @@ export default async function AdminCategoriesPage() {
                     >
                       {category.is_active ? "Active" : "Hidden"}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <CategoryFormDialog category={category} />
+                      <DeleteCategoryButton
+                        id={category.id}
+                        name={category.name}
+                      />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
