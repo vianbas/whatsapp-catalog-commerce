@@ -20,6 +20,7 @@ const STOCK_LABEL: Record<StockStatus, string> = {
 async function getProduct(slug: string): Promise<{
   product: Product | null;
   whatsappNumber: string;
+  greeting?: string;
 }> {
   const fallbackNumber =
     process.env.NEXT_PUBLIC_STORE_WHATSAPP_NUMBER ?? "6281234567890";
@@ -32,12 +33,17 @@ async function getProduct(slug: string): Promise<{
         .eq("slug", slug)
         .eq("is_active", true)
         .maybeSingle(),
-      supabase.from("store_settings").select("whatsapp_number").maybeSingle(),
+      supabase
+        .from("store_settings")
+        .select("whatsapp_number, checkout_message_template")
+        .maybeSingle(),
     ]);
 
     return {
       product: (product as Product | null) ?? null,
       whatsappNumber: settings?.whatsapp_number ?? fallbackNumber,
+      // Empty/absent template falls back to the default greeting in buildCheckoutUrl.
+      greeting: settings?.checkout_message_template || undefined,
     };
   } catch {
     return { product: null, whatsappNumber: fallbackNumber };
@@ -50,7 +56,7 @@ export default async function ProductDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const { product, whatsappNumber } = await getProduct(slug);
+  const { product, whatsappNumber, greeting } = await getProduct(slug);
 
   if (!product) notFound();
 
@@ -115,6 +121,7 @@ export default async function ProductDetailPage({
 
           <WhatsappCheckoutButton
             phone={whatsappNumber}
+            greeting={greeting}
             items={[{ name: product.name, price: product.price, quantity: 1 }]}
             disabled={soldOut}
             label={soldOut ? "Sold out" : "Order via WhatsApp"}
