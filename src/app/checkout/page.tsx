@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 async function getCheckout(productSlug?: string): Promise<{
   product: Product | null;
   whatsappNumber: string;
+  greeting?: string;
 }> {
   const fallbackNumber =
     process.env.NEXT_PUBLIC_STORE_WHATSAPP_NUMBER ?? "6281234567890";
@@ -28,11 +29,15 @@ async function getCheckout(productSlug?: string): Promise<{
         .eq("slug", productSlug)
         .eq("is_active", true)
         .maybeSingle(),
-      supabase.from("store_settings").select("whatsapp_number").maybeSingle(),
+      supabase
+        .from("store_settings")
+        .select("whatsapp_number, checkout_message_template")
+        .maybeSingle(),
     ]);
     return {
       product: (product as Product | null) ?? null,
       whatsappNumber: settings?.whatsapp_number ?? fallbackNumber,
+      greeting: settings?.checkout_message_template || undefined,
     };
   } catch {
     return { product: null, whatsappNumber: fallbackNumber };
@@ -46,7 +51,7 @@ export default async function CheckoutPage({
 }) {
   const { product: productSlug, qty } = await searchParams;
   const quantity = Math.max(1, Number(qty) || 1);
-  const { product, whatsappNumber } = await getCheckout(productSlug);
+  const { product, whatsappNumber, greeting } = await getCheckout(productSlug);
 
   return (
     <main className="mx-auto w-full max-w-lg flex-1 px-6 py-12">
@@ -75,6 +80,7 @@ export default async function CheckoutPage({
             </div>
             <WhatsappCheckoutButton
               phone={whatsappNumber}
+              greeting={greeting}
               items={[
                 { name: product.name, price: product.price, quantity },
               ]}
