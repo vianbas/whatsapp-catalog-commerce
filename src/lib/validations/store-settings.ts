@@ -12,7 +12,9 @@ export const storeSettingsSchema = z.object({
     .trim()
     .min(8, "Enter a valid WhatsApp number")
     .regex(/^[+0-9\s()-]+$/, "Only digits and phone separators are allowed"),
-  currency: z.string().trim().length(3).default("IDR"),
+  // No .default() so the schema's input and output types match (required for
+  // the RHF zodResolver); the form supplies "IDR" as the default value.
+  currency: z.string().trim().length(3),
   checkout_message_template: z
     .string()
     .trim()
