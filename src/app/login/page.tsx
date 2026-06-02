@@ -32,6 +32,7 @@ function LoginForm() {
   const [info, setInfo] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [linkLoading, setLinkLoading] = React.useState(false);
+  const [resetLoading, setResetLoading] = React.useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -85,6 +86,34 @@ function LoginForm() {
     }
   }
 
+  async function handleResetPassword() {
+    setError(null);
+    setInfo(null);
+    if (!email) {
+      setError("Enter your email first, then request a reset.");
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const supabase = createClient();
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        email,
+        {
+          redirectTo: `${window.location.origin}/auth/callback?next=/auth/update-password`,
+        }
+      );
+      if (resetError) {
+        setError(resetError.message);
+        return;
+      }
+      setInfo("Check your email to reset your password.");
+    } catch {
+      setError("Unable to send the reset email. Check your Supabase configuration.");
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
   return (
     <main className="flex flex-1 items-center justify-center px-6 py-12">
       <Card className="w-full max-w-sm">
@@ -108,7 +137,17 @@ function LoginForm() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <button
+                  type="button"
+                  onClick={handleResetPassword}
+                  disabled={resetLoading}
+                  className="text-muted-foreground text-xs hover:text-foreground hover:underline disabled:opacity-50"
+                >
+                  {resetLoading ? "Sending…" : "Forgot password?"}
+                </button>
+              </div>
               <Input
                 id="password"
                 type="password"
