@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Card,
   CardContent,
@@ -8,11 +7,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { StoreSettingsForm } from "@/components/store-settings-form";
 import { createClient } from "@/lib/supabase/server";
 import type { StoreSettings } from "@/lib/types";
+import type { StoreSettingsInput } from "@/lib/validations/store-settings";
 
 export const metadata: Metadata = { title: "Settings" };
 export const dynamic = "force-dynamic";
@@ -35,6 +33,14 @@ export default async function AdminSettingsPage() {
   const fallbackNumber =
     process.env.NEXT_PUBLIC_STORE_WHATSAPP_NUMBER ?? "6281234567890";
 
+  const defaultValues: StoreSettingsInput = {
+    store_name: settings?.store_name ?? "My Store",
+    store_description: settings?.store_description ?? "",
+    whatsapp_number: settings?.whatsapp_number ?? fallbackNumber,
+    currency: settings?.currency ?? "IDR",
+    checkout_message_template: settings?.checkout_message_template ?? "",
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -44,13 +50,6 @@ export default async function AdminSettingsPage() {
         </p>
       </div>
 
-      <Alert>
-        <AlertDescription>
-          Editing &amp; persistence is wired up in a later step. Values below
-          reflect the current configuration.
-        </AlertDescription>
-      </Alert>
-
       <Card className="max-w-2xl">
         <CardHeader>
           <CardTitle className="text-base">Storefront</CardTitle>
@@ -58,32 +57,8 @@ export default async function AdminSettingsPage() {
             Public-facing store identity and contact.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="store_name">Store name</Label>
-            <Input
-              id="store_name"
-              defaultValue={settings?.store_name ?? "My Store"}
-              disabled
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="whatsapp_number">WhatsApp number</Label>
-            <Input
-              id="whatsapp_number"
-              defaultValue={settings?.whatsapp_number ?? fallbackNumber}
-              disabled
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="store_description">Description</Label>
-            <Textarea
-              id="store_description"
-              rows={3}
-              defaultValue={settings?.store_description ?? ""}
-              disabled
-            />
-          </div>
+        <CardContent>
+          <StoreSettingsForm defaultValues={defaultValues} />
         </CardContent>
       </Card>
     </div>
