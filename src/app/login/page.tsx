@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Loader2, Mail } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -15,18 +15,28 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const [error, setError] = React.useState<string | null>(null);
+  // Seed from ?error=auth bounced back by /auth/callback; cleared on next action.
+  const [error, setError] = React.useState<string | null>(() =>
+    searchParams.get("error") === "auth"
+      ? "That sign-in link was invalid or has expired. Try again."
+      : null
+  );
+  const [info, setInfo] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
+  const [linkLoading, setLinkLoading] = React.useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setInfo(null);
     setLoading(true);
     try {
       const supabase = createClient();
@@ -47,6 +57,34 @@ export default function LoginPage() {
     }
   }
 
+  async function handleMagicLink() {
+    setError(null);
+    setInfo(null);
+    if (!email) {
+      setError("Enter your email first, then request a link.");
+      return;
+    }
+    setLinkLoading(true);
+    try {
+      const supabase = createClient();
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/admin`,
+        },
+      });
+      if (otpError) {
+        setError(otpError.message);
+        return;
+      }
+      setInfo("Check your email for a login link.");
+    } catch {
+      setError("Unable to send the link. Check your Supabase configuration.");
+    } finally {
+      setLinkLoading(false);
+    }
+  }
+
   return (
     <main className="flex flex-1 items-center justify-center px-6 py-12">
       <Card className="w-full max-w-sm">
@@ -56,7 +94,7 @@ export default function LoginPage() {
             Sign in to manage the catalog and store settings.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -86,14 +124,48 @@ export default function LoginPage() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
+            {info && (
+              <Alert>
+                <AlertDescription>{info}</AlertDescription>
+              </Alert>
+            )}
 
             <Button type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="size-4 animate-spin" />}
               Sign in
             </Button>
           </form>
+
+          <div className="flex items-center gap-3">
+            <Separator className="flex-1" />
+            <span className="text-muted-foreground text-xs">or</span>
+            <Separator className="flex-1" />
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={handleMagicLink}
+            disabled={linkLoading}
+          >
+            {linkLoading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Mail className="size-4" aria-hidden />
+            )}
+            Email me a login link
+          </Button>
         </CardContent>
       </Card>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <React.Suspense>
+      <LoginForm />
+    </React.Suspense>
   );
 }
