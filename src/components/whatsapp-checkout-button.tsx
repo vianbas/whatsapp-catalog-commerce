@@ -14,6 +14,7 @@ export function WhatsappCheckoutButton({
   items,
   greeting,
   label = "Order via WhatsApp",
+  variant = "default",
   className,
   disabled,
 }: {
@@ -21,6 +22,7 @@ export function WhatsappCheckoutButton({
   items: WhatsappLineItem[]
   greeting?: string
   label?: string
+  variant?: "default" | "outline"
   className?: string
   disabled?: boolean
 }) {
@@ -29,6 +31,7 @@ export function WhatsappCheckoutButton({
   return (
     <Button
       asChild
+      variant={variant}
       className={className}
       disabled={disabled || items.length === 0}
     >

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { CategoryFilter } from "@/components/category-filter";
 import { ProductGrid } from "@/components/product-grid";
+import { CartIndicator } from "@/components/cart-indicator";
 import { createClient } from "@/lib/supabase/server";
 import type { Category, Product } from "@/lib/types";
 
@@ -65,9 +66,15 @@ export default async function ProductsPage({
             Browse the catalog and order via WhatsApp.
           </p>
         </div>
-        <Link href="/" className="text-muted-foreground text-sm hover:underline">
-          ← Home
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link
+            href="/"
+            className="text-muted-foreground text-sm hover:underline"
+          >
+            ← Home
+          </Link>
+          <CartIndicator />
+        </div>
       </div>
 
       <div className="mb-6">

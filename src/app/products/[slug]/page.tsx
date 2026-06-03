@@ -5,6 +5,8 @@ import { Package } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { WhatsappCheckoutButton } from "@/components/whatsapp-checkout-button";
+import { AddToCartButton } from "@/components/add-to-cart-button";
+import { CartIndicator } from "@/components/cart-indicator";
 import { createClient } from "@/lib/supabase/server";
 import { formatRupiah } from "@/lib/utils";
 import type { Product, StockStatus } from "@/lib/types";
@@ -67,12 +69,15 @@ export default async function ProductDetailPage({
 
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-10">
-      <Link
-        href="/products"
-        className="text-muted-foreground mb-6 inline-block text-sm hover:underline"
-      >
-        ← Back to products
-      </Link>
+      <div className="mb-6 flex items-center justify-between">
+        <Link
+          href="/products"
+          className="text-muted-foreground text-sm hover:underline"
+        >
+          ← Back to products
+        </Link>
+        <CartIndicator />
+      </div>
 
       <div className="grid gap-8 md:grid-cols-2">
         <div className="bg-muted relative aspect-square overflow-hidden rounded-lg">
@@ -119,14 +124,28 @@ export default async function ProductDetailPage({
             </p>
           )}
 
-          <WhatsappCheckoutButton
-            phone={whatsappNumber}
-            greeting={greeting}
-            items={[{ name: product.name, price: product.price, quantity: 1 }]}
-            disabled={soldOut}
-            label={soldOut ? "Sold out" : "Order via WhatsApp"}
-            className="w-full sm:w-auto"
-          />
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <AddToCartButton
+              product={{
+                id: product.id,
+                slug: product.slug,
+                name: product.name,
+                price: product.price,
+                image: cover,
+              }}
+              disabled={soldOut}
+              className="w-full sm:w-auto"
+            />
+            <WhatsappCheckoutButton
+              phone={whatsappNumber}
+              greeting={greeting}
+              items={[{ name: product.name, price: product.price, quantity: 1 }]}
+              disabled={soldOut}
+              variant="outline"
+              label={soldOut ? "Sold out" : "Order via WhatsApp"}
+              className="w-full sm:w-auto"
+            />
+          </div>
         </div>
       </div>
     </main>
