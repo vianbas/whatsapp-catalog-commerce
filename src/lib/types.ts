@@ -59,3 +59,20 @@ export interface Profile {
   role: "admin" | "staff";
   created_at: string;
 }
+
+export type OrderStatus = "new" | "contacted" | "completed" | "cancelled";
+
+export interface OrderItem {
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+export interface Order {
+  id: string;
+  items: OrderItem[];
+  total: number;
+  source: string | null;
+  status: OrderStatus;
+  created_at: string;
+}

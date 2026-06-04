@@ -102,3 +102,25 @@ create unique index if not exists uq_store_settings_singleton
 create trigger trg_store_settings_updated_at
   before update on public.store_settings
   for each row execute function public.set_updated_at();
+
+-- orders ---------------------------------------------------------------------
+-- Lightweight record of a WhatsApp checkout (an inquiry, not a paid order).
+-- Created anonymously by the storefront; managed by admins.
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'order_status') then
+    create type public.order_status as enum ('new', 'contacted', 'completed', 'cancelled');
+  end if;
+end$$;
+
+create table if not exists public.orders (
+  id         uuid primary key default gen_random_uuid(),
+  items      jsonb not null default '[]',   -- [{ name, price, quantity }]
+  total      integer not null default 0 check (total >= 0),  -- whole rupiah
+  source     text,                          -- e.g. 'cart' | 'checkout' | 'product'
+  status     public.order_status not null default 'new',
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_orders_status     on public.orders (status);
+create index if not exists idx_orders_created_at  on public.orders (created_at desc);
