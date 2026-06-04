@@ -60,6 +60,17 @@ export interface Profile {
   created_at: string;
 }
 
+export type UserRole = Profile["role"];
+
+/** Row returned by the admin-only `list_users()` SQL function. */
+export interface AdminUser {
+  id: string;
+  email: string;
+  full_name: string | null;
+  role: UserRole;
+  created_at: string;
+}
+
 export type OrderStatus = "new" | "contacted" | "completed" | "cancelled";
 
 export interface OrderItem {

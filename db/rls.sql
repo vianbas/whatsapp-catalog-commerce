@@ -23,11 +23,22 @@ create policy "profiles_select_own"
   on public.profiles for select
   using (auth.uid() = id);
 
+-- NOTE: no self-update policy. Letting a user update their own profile row
+-- would allow a staff member to set their own role to 'admin'. Role changes go
+-- only through admins (policy below).
 drop policy if exists "profiles_update_own" on public.profiles;
-create policy "profiles_update_own"
+
+-- Admins can read every profile (for the user-management UI) and update roles.
+drop policy if exists "profiles_admin_read" on public.profiles;
+create policy "profiles_admin_read"
+  on public.profiles for select
+  using (public.is_admin());
+
+drop policy if exists "profiles_admin_update" on public.profiles;
+create policy "profiles_admin_update"
   on public.profiles for update
-  using (auth.uid() = id)
-  with check (auth.uid() = id);
+  using (public.is_admin())
+  with check (public.is_admin());
 
 -- categories -----------------------------------------------------------------
 drop policy if exists "categories_public_read_active" on public.categories;
