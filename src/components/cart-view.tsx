@@ -116,6 +116,8 @@ export function CartView({
         <WhatsappCheckoutButton
           phone={phone}
           greeting={greeting}
+          recordOrder
+          source="cart"
           items={items.map((i) => ({
             name: i.name,
             price: i.price,

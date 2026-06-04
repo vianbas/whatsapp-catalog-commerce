@@ -139,6 +139,8 @@ export default async function ProductDetailPage({
             <WhatsappCheckoutButton
               phone={whatsappNumber}
               greeting={greeting}
+              recordOrder
+              source="product"
               items={[{ name: product.name, price: product.price, quantity: 1 }]}
               disabled={soldOut}
               variant="outline"

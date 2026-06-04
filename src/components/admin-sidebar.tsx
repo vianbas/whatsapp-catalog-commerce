@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   LogOut,
   Package,
+  ShoppingBag,
   Store,
   Tags,
   type LucideIcon,
@@ -19,6 +20,7 @@ const NAV: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/categories", label: "Categories", icon: Tags },
+  { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
   { href: "/admin/settings", label: "Settings", icon: Store },
 ]
 

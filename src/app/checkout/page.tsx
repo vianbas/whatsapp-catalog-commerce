@@ -81,6 +81,8 @@ export default async function CheckoutPage({
             <WhatsappCheckoutButton
               phone={whatsappNumber}
               greeting={greeting}
+              recordOrder
+              source="checkout"
               items={[
                 { name: product.name, price: product.price, quantity },
               ]}

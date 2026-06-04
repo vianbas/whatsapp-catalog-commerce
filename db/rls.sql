@@ -19,6 +19,7 @@ alter table public.profiles       enable row level security;
 alter table public.categories     enable row level security;
 alter table public.products       enable row level security;
 alter table public.store_settings enable row level security;
+alter table public.orders         enable row level security;
 
 -- profiles -------------------------------------------------------------------
 -- A user can read and update only their own profile row.
@@ -68,3 +69,27 @@ create policy "store_settings_admin_all"
   on public.store_settings for all
   using (auth.role() = 'authenticated')
   with check (auth.role() = 'authenticated');
+
+-- orders ---------------------------------------------------------------------
+-- Storefront shoppers are anonymous, so they may INSERT an order but never read
+-- one back (insert is done without a returning select). Admins manage all.
+drop policy if exists "orders_public_insert" on public.orders;
+create policy "orders_public_insert"
+  on public.orders for insert
+  with check (true);
+
+drop policy if exists "orders_admin_read" on public.orders;
+create policy "orders_admin_read"
+  on public.orders for select
+  using (auth.role() = 'authenticated');
+
+drop policy if exists "orders_admin_write" on public.orders;
+create policy "orders_admin_write"
+  on public.orders for update
+  using (auth.role() = 'authenticated')
+  with check (auth.role() = 'authenticated');
+
+drop policy if exists "orders_admin_delete" on public.orders;
+create policy "orders_admin_delete"
+  on public.orders for delete
+  using (auth.role() = 'authenticated');

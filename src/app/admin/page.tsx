@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Package, Tags } from "lucide-react";
+import { Package, ShoppingBag, Tags } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,19 +9,25 @@ import { createClient } from "@/lib/supabase/server";
 export const metadata: Metadata = { title: "Dashboard" };
 export const dynamic = "force-dynamic";
 
-async function getStats(): Promise<{ products: number; categories: number }> {
+async function getStats(): Promise<{
+  products: number;
+  categories: number;
+  orders: number;
+}> {
   try {
     const supabase = await createClient();
-    const [products, categories] = await Promise.all([
+    const [products, categories, orders] = await Promise.all([
       supabase.from("products").select("*", { count: "exact", head: true }),
       supabase.from("categories").select("*", { count: "exact", head: true }),
+      supabase.from("orders").select("*", { count: "exact", head: true }),
     ]);
     return {
       products: products.count ?? 0,
       categories: categories.count ?? 0,
+      orders: orders.count ?? 0,
     };
   } catch {
-    return { products: 0, categories: 0 };
+    return { products: 0, categories: 0, orders: 0 };
   }
 }
 
@@ -31,6 +37,7 @@ export default async function AdminDashboardPage() {
   const cards = [
     { label: "Products", value: stats.products, icon: Package, href: "/admin/products" },
     { label: "Categories", value: stats.categories, icon: Tags, href: "/admin/categories" },
+    { label: "Orders", value: stats.orders, icon: ShoppingBag, href: "/admin/orders" },
   ];
 
   return (
@@ -47,7 +54,7 @@ export default async function AdminDashboardPage() {
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         {cards.map(({ label, value, icon: Icon, href }) => (
           <Link key={label} href={href}>
             <Card className="transition-shadow hover:shadow-md">
