@@ -124,3 +124,58 @@ create table if not exists public.orders (
 
 create index if not exists idx_orders_status     on public.orders (status);
 create index if not exists idx_orders_created_at  on public.orders (created_at desc);
+
+-- Role-based access ----------------------------------------------------------
+-- is_admin(): used by RLS to gate management to admins. SECURITY DEFINER so it
+-- can read profiles regardless of the caller's own RLS, avoiding recursion.
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role = 'admin'
+  );
+$$;
+
+grant execute on function public.is_admin() to authenticated;
+
+-- Auto-create a profile when an auth user is created. The first ever user
+-- becomes 'admin'; subsequent users default to 'staff' (promote manually).
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (id, role)
+  values (
+    new.id,
+    case
+      when exists (select 1 from public.profiles where role = 'admin')
+        then 'staff'::public.user_role
+      else 'admin'::public.user_role
+    end
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- Bootstrap: give every pre-existing auth user an admin profile so tightening
+-- RLS below never locks out an account that already had full access. Safe to
+-- re-run; only fills gaps.
+insert into public.profiles (id, role)
+select u.id, 'admin'::public.user_role
+from auth.users u
+where not exists (select 1 from public.profiles p where p.id = u.id)
+on conflict (id) do nothing;

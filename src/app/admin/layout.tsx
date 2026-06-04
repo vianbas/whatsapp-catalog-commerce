@@ -11,20 +11,27 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Defense in depth: `proxy.ts` already gates `/admin`, but we re-check here
-  // so the layout never renders for an unauthenticated request. Resolve auth
-  // first, then redirect outside the try so the control-flow throw isn't caught.
-  let authenticated = false;
+  // Defense in depth on top of RLS: require an authenticated user whose profile
+  // has the `admin` role. Resolve first, then redirect outside the try so the
+  // control-flow throw isn't caught.
+  let isAdmin = false;
   try {
     const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    authenticated = !!user;
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+      isAdmin = profile?.role === "admin";
+    }
   } catch {
-    authenticated = false;
+    isAdmin = false;
   }
-  if (!authenticated) redirect("/login");
+  if (!isAdmin) redirect("/login");
 
   return (
     <div className="flex min-h-screen flex-1">

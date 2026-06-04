@@ -1,18 +1,13 @@
 -- WhatsApp Catalog Commerce — Row Level Security
 -- Apply AFTER schema.sql.
 --
--- Policy model (kept intentionally simple for the foundation):
+-- Policy model:
 --   * Anonymous/public visitors may READ active categories, active products,
 --     and the store settings — this powers the public storefront.
---   * Any authenticated user is treated as an admin and may manage catalog
---     data and settings.
---
--- HARDENING NOTE: "authenticated == admin" is a deliberate simplification.
--- The `profiles.role` column already exists. To enforce true role checks
--- later, replace `auth.role() = 'authenticated'` below with a check such as:
---     exists (select 1 from public.profiles p
---             where p.id = auth.uid() and p.role = 'admin')
--- No schema change is required to do so.
+--   * Anonymous visitors may INSERT orders (WhatsApp checkout) but not read them.
+--   * Only users whose profile has role = 'admin' may manage catalog data,
+--     settings, and orders. This is enforced via the public.is_admin() helper
+--     (defined in schema.sql), which is also mirrored by the admin layout.
 
 -- Enable RLS -----------------------------------------------------------------
 alter table public.profiles       enable row level security;
@@ -43,8 +38,8 @@ create policy "categories_public_read_active"
 drop policy if exists "categories_admin_all" on public.categories;
 create policy "categories_admin_all"
   on public.categories for all
-  using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+  using (public.is_admin())
+  with check (public.is_admin());
 
 -- products -------------------------------------------------------------------
 drop policy if exists "products_public_read_active" on public.products;
@@ -55,8 +50,8 @@ create policy "products_public_read_active"
 drop policy if exists "products_admin_all" on public.products;
 create policy "products_admin_all"
   on public.products for all
-  using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+  using (public.is_admin())
+  with check (public.is_admin());
 
 -- store_settings -------------------------------------------------------------
 drop policy if exists "store_settings_public_read" on public.store_settings;
@@ -67,8 +62,8 @@ create policy "store_settings_public_read"
 drop policy if exists "store_settings_admin_all" on public.store_settings;
 create policy "store_settings_admin_all"
   on public.store_settings for all
-  using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+  using (public.is_admin())
+  with check (public.is_admin());
 
 -- orders ---------------------------------------------------------------------
 -- Storefront shoppers are anonymous, so they may INSERT an order but never read
@@ -81,15 +76,15 @@ create policy "orders_public_insert"
 drop policy if exists "orders_admin_read" on public.orders;
 create policy "orders_admin_read"
   on public.orders for select
-  using (auth.role() = 'authenticated');
+  using (public.is_admin());
 
 drop policy if exists "orders_admin_write" on public.orders;
 create policy "orders_admin_write"
   on public.orders for update
-  using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+  using (public.is_admin())
+  with check (public.is_admin());
 
 drop policy if exists "orders_admin_delete" on public.orders;
 create policy "orders_admin_delete"
   on public.orders for delete
-  using (auth.role() = 'authenticated');
+  using (public.is_admin());
