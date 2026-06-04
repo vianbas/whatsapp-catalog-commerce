@@ -125,13 +125,15 @@ request and redirects unauthenticated users away from `/admin`.
   Supabase clients use only `NEXT_PUBLIC_SUPABASE_ANON_KEY`. RLS is the security
   boundary.
 - **RLS is enabled on every app table.** Public users can read only *active*
-  products/categories and store settings; any authenticated user may currently
-  manage catalog data.
-- **Simplification (documented):** "authenticated == admin" is intentional for
-  this step. `db/rls.sql` documents exactly how to tighten this to a
-  `profiles.role = 'admin'` check with no schema change.
+  products/categories and store settings, and may insert (but not read) orders.
+  Only users whose `profiles.role = 'admin'` may manage catalog data, settings,
+  and orders — enforced by the `public.is_admin()` helper used in `db/rls.sql`.
+- **Role bootstrapping:** a trigger creates a `profiles` row on signup (the
+  first user becomes `admin`, later users `staff`); applying `db/schema.sql`
+  also backfills existing auth users as `admin` so no one is locked out.
 - **Route protection:** `src/proxy.ts` blocks unauthenticated access to
-  `/admin`; the admin layout re-checks `getUser()` as defense in depth.
+  `/admin`; the admin layout additionally verifies the caller's `profiles.role`
+  is `admin` (defense in depth on top of RLS).
 - Never commit real secrets. `.env*` is git-ignored (except `.env.example`).
 
 ## 8. Local development setup
