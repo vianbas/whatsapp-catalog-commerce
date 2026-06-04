@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 
 import {
@@ -76,7 +77,12 @@ export default async function AdminOrdersPage() {
               orders.map((order) => (
                 <TableRow key={order.id}>
                   <TableCell className="whitespace-nowrap text-sm">
-                    {dateFormatter.format(new Date(order.created_at))}
+                    <Link
+                      href={`/admin/orders/${order.id}`}
+                      className="font-medium hover:underline"
+                    >
+                      {dateFormatter.format(new Date(order.created_at))}
+                    </Link>
                   </TableCell>
                   <TableCell className="max-w-xs">
                     <span className="text-muted-foreground line-clamp-2 text-sm">
