@@ -50,6 +50,7 @@ create table if not exists public.categories (
   updated_at  timestamptz not null default now()
 );
 
+drop trigger if exists trg_categories_updated_at on public.categories;
 create trigger trg_categories_updated_at
   before update on public.categories
   for each row execute function public.set_updated_at();
@@ -76,6 +77,7 @@ create index if not exists idx_products_category_id on public.products (category
 create index if not exists idx_products_is_active   on public.products (is_active);
 create index if not exists idx_products_is_featured on public.products (is_featured);
 
+drop trigger if exists trg_products_updated_at on public.products;
 create trigger trg_products_updated_at
   before update on public.products
   for each row execute function public.set_updated_at();
@@ -99,6 +101,7 @@ create table if not exists public.store_settings (
 create unique index if not exists uq_store_settings_singleton
   on public.store_settings (singleton);
 
+drop trigger if exists trg_store_settings_updated_at on public.store_settings;
 create trigger trg_store_settings_updated_at
   before update on public.store_settings
   for each row execute function public.set_updated_at();
