@@ -179,3 +179,28 @@ select u.id, 'admin'::public.user_role
 from auth.users u
 where not exists (select 1 from public.profiles p where p.id = u.id)
 on conflict (id) do nothing;
+
+-- list_users(): admin-only directory joining profiles with auth.users for email.
+-- SECURITY DEFINER so it can read auth.users; the `where is_admin()` guard means
+-- non-admins simply get zero rows.
+create or replace function public.list_users()
+returns table (
+  id         uuid,
+  email      text,
+  full_name  text,
+  role       public.user_role,
+  created_at timestamptz
+)
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select p.id, u.email::text, p.full_name, p.role, p.created_at
+  from public.profiles p
+  join auth.users u on u.id = p.id
+  where public.is_admin()
+  order by p.created_at asc;
+$$;
+
+grant execute on function public.list_users() to authenticated;
