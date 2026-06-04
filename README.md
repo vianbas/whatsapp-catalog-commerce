@@ -70,8 +70,9 @@ are negotiated in chat, exactly as sellers already operate.
 ```txt
 .
 ├── db/
-│   ├── schema.sql            # tables, enums, triggers
+│   ├── schema.sql            # tables, enums, triggers, is_admin, list_users
 │   ├── rls.sql               # row-level security policies
+│   ├── storage.sql           # product-images bucket + storage policies
 │   └── seed.sql              # demo categories/products/settings
 ├── src/
 │   ├── proxy.ts              # Next "middleware" → refresh session, gate /admin
@@ -117,7 +118,7 @@ request and redirects unauthenticated users away from `/admin`.
   `currency`, `checkout_message_template`).
 
 `updated_at` is maintained by a shared trigger. Apply files in order:
-`schema.sql` → `rls.sql` → `seed.sql`.
+`schema.sql` → `rls.sql` → `storage.sql` → `seed.sql`.
 
 ## 7. Security notes
 
@@ -146,11 +147,13 @@ npm install
 cp .env.example .env.local   # then fill in your Supabase values
 
 # 3. Apply the database (Supabase SQL editor or psql), in order:
-#    db/schema.sql → db/rls.sql → db/seed.sql
+#    db/schema.sql → db/rls.sql → db/storage.sql → db/seed.sql
+#    (storage.sql creates the public `product-images` bucket + upload policies)
 
-# 4. Create the Storage bucket `product-images` (public) in Supabase.
+# 4. Create an admin user in Supabase Auth (Add user → Create new user,
+#    with a password and "Auto Confirm"). schema.sql backfills it as admin.
 
-# 5. Create an admin user in Supabase Auth, then run:
+# 5. Run the app:
 npm run dev
 ```
 
@@ -169,8 +172,8 @@ Visit `http://localhost:3000` for the storefront and `/admin` for the admin
 
 1. Push the repository to GitHub and import it into **Vercel**.
 2. Add the three environment variables in the Vercel project settings.
-3. Ensure the Supabase schema/RLS/seed have been applied and the
-   `product-images` bucket exists and is public.
+3. Ensure the Supabase SQL has been applied (`schema.sql` → `rls.sql` →
+   `storage.sql`), which also creates the public `product-images` bucket.
 4. Deploy. Next.js auto-detects the App Router; `src/proxy.ts` runs at the edge
    to keep sessions fresh.
 
