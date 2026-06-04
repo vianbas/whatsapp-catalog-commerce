@@ -1,12 +1,11 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Package } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { WhatsappCheckoutButton } from "@/components/whatsapp-checkout-button";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { CartIndicator } from "@/components/cart-indicator";
+import { ProductGallery } from "@/components/product-gallery";
 import { createClient } from "@/lib/supabase/server";
 import { formatRupiah } from "@/lib/utils";
 import type { Product, StockStatus } from "@/lib/types";
@@ -80,22 +79,7 @@ export default async function ProductDetailPage({
       </div>
 
       <div className="grid gap-8 md:grid-cols-2">
-        <div className="bg-muted relative aspect-square overflow-hidden rounded-lg">
-          {cover ? (
-            <Image
-              src={cover}
-              alt={product.name}
-              fill
-              sizes="(max-width: 768px) 100vw, 50vw"
-              className="object-cover"
-              priority
-            />
-          ) : (
-            <div className="text-muted-foreground flex h-full w-full items-center justify-center">
-              <Package className="size-16" aria-hidden />
-            </div>
-          )}
-        </div>
+        <ProductGallery images={product.images} alt={product.name} />
 
         <div className="space-y-5">
           <div className="space-y-2">
