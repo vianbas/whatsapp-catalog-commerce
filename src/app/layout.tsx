@@ -11,6 +11,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  // Makes OG/canonical URLs absolute when the site URL is configured.
+  ...(process.env.NEXT_PUBLIC_SITE_URL
+    ? { metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL) }
+    : {}),
   title: {
     default: "WhatsApp Catalog Commerce",
     template: "%s · WhatsApp Catalog Commerce",
