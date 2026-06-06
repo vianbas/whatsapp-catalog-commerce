@@ -158,9 +158,18 @@ export default async function ProductDetailPage({
 
         <div className="space-y-5">
           <div className="space-y-2">
-            <Badge variant="secondary" className="capitalize">
-              {STOCK_LABEL[product.stock_status]}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="capitalize">
+                {STOCK_LABEL[product.stock_status]}
+              </Badge>
+              {product.stock_quantity != null &&
+                product.stock_quantity > 0 &&
+                product.stock_quantity <= 10 && (
+                  <span className="text-destructive text-xs font-medium">
+                    Only {product.stock_quantity} left
+                  </span>
+                )}
+            </div>
             <h1 className="text-2xl font-semibold tracking-tight">
               {product.name}
             </h1>

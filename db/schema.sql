@@ -125,6 +125,17 @@ create table if not exists public.orders (
   created_at timestamptz not null default now()
 );
 
+-- Add stock_quantity for inventory tracking (null = unlimited).
+do $$ begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_name = 'products' and column_name = 'stock_quantity'
+  ) then
+    alter table public.products
+      add column stock_quantity integer check (stock_quantity >= 0);
+  end if;
+end$$;
+
 create index if not exists idx_orders_status     on public.orders (status);
 create index if not exists idx_orders_created_at  on public.orders (created_at desc);
 

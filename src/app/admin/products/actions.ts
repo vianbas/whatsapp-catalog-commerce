@@ -18,7 +18,9 @@ function toRow(values: ProductInput) {
     price: values.price,
     compare_at_price: values.compare_at_price ?? null,
     images: values.images,
-    stock_status: values.stock_status,
+    stock_quantity: values.stock_quantity ?? null,
+    // Auto-mark sold out when quantity is explicitly set to zero.
+    stock_status: values.stock_quantity === 0 ? "sold_out" : values.stock_status,
     is_featured: values.is_featured,
     is_active: values.is_active,
     sort_order: values.sort_order,

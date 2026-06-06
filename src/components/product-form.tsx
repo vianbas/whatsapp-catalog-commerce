@@ -43,6 +43,7 @@ const EMPTY_DEFAULTS: ProductInput = {
   compare_at_price: null,
   images: [],
   stock_status: "available",
+  stock_quantity: null,
   is_featured: false,
   is_active: true,
   sort_order: 0,
@@ -255,6 +256,34 @@ export function ProductForm({
             )}
           />
         </div>
+
+        <FormField
+          control={form.control}
+          name="stock_quantity"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Stock quantity</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Leave blank for unlimited"
+                  {...field}
+                  value={field.value ?? ""}
+                  onChange={(e) =>
+                    field.onChange(
+                      e.target.value === "" ? null : Number(e.target.value)
+                    )
+                  }
+                />
+              </FormControl>
+              <FormDescription>
+                Optional. Setting to 0 automatically marks the product as sold out.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}
