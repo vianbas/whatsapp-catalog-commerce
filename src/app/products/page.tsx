@@ -39,6 +39,7 @@ async function getCatalog(
       .from("products")
       .select("*", { count: "exact" })
       .eq("is_active", true)
+      .order("is_featured", { ascending: false })
       .order("sort_order", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
 

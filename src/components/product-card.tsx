@@ -1,6 +1,6 @@
 import Image from "next/image"
 import Link from "next/link"
-import { Package } from "lucide-react"
+import { Package, Star } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -46,6 +46,12 @@ export function ProductCard({ product }: { product: Product }) {
               className="absolute left-2 top-2 capitalize"
             >
               {STOCK_LABEL[product.stock_status]}
+            </Badge>
+          )}
+          {product.is_featured && (
+            <Badge className="absolute right-2 top-2 gap-1">
+              <Star className="size-3" aria-hidden />
+              Featured
             </Badge>
           )}
         </div>
