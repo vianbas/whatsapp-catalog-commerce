@@ -5,6 +5,7 @@ import { CategoryFilter } from "@/components/category-filter";
 import { ProductGrid } from "@/components/product-grid";
 import { CartIndicator } from "@/components/cart-indicator";
 import { SearchBar } from "@/components/search-bar";
+import { SortSelect, type SortOption } from "@/components/sort-select";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import type { Category, Product } from "@/lib/types";
@@ -19,7 +20,8 @@ const PAGE_SIZE = 12;
 async function getCatalog(
   categorySlug: string | undefined,
   q: string | undefined,
-  page: number
+  page: number,
+  sort: SortOption
 ): Promise<{
   categories: Pick<Category, "id" | "name" | "slug">[];
   products: Product[];
@@ -39,9 +41,19 @@ async function getCatalog(
       .from("products")
       .select("*", { count: "exact" })
       .eq("is_active", true)
-      .order("is_featured", { ascending: false })
-      .order("sort_order", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
+
+    if (sort === "price_asc") {
+      query = query.order("price", { ascending: true });
+    } else if (sort === "price_desc") {
+      query = query.order("price", { ascending: false });
+    } else if (sort === "newest") {
+      query = query.order("created_at", { ascending: false });
+    } else {
+      query = query
+        .order("is_featured", { ascending: false })
+        .order("sort_order", { ascending: true });
+    }
 
     if (categorySlug) {
       const match = categories?.find((c) => c.slug === categorySlug);
@@ -67,10 +79,17 @@ async function getCatalog(
   }
 }
 
-function pageHref(page: number, category?: string, q?: string): string {
+const SORT_VALUES: SortOption[] = ["featured", "price_asc", "price_desc", "newest"];
+
+function toSortOption(raw?: string): SortOption {
+  return SORT_VALUES.includes(raw as SortOption) ? (raw as SortOption) : "featured";
+}
+
+function pageHref(page: number, category?: string, q?: string, sort?: SortOption): string {
   const params = new URLSearchParams();
   if (category) params.set("category", category);
   if (q) params.set("q", q);
+  if (sort && sort !== "featured") params.set("sort", sort);
   if (page > 1) params.set("page", String(page));
   const qs = params.toString();
   return `/products${qs ? `?${qs}` : ""}`;
@@ -79,11 +98,12 @@ function pageHref(page: number, category?: string, q?: string): string {
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; q?: string; page?: string }>;
+  searchParams: Promise<{ category?: string; q?: string; page?: string; sort?: string }>;
 }) {
-  const { category, q, page: pageParam } = await searchParams;
+  const { category, q, page: pageParam, sort: sortParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
-  const { categories, products, total } = await getCatalog(category, q, page);
+  const sort = toSortOption(sortParam);
+  const { categories, products, total } = await getCatalog(category, q, page, sort);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -114,11 +134,12 @@ export default async function ProductsPage({
       </div>
 
       <div className="mb-4">
-        <SearchBar defaultQuery={q ?? ""} category={category} />
+        <SearchBar defaultQuery={q ?? ""} category={category} sort={sort} />
       </div>
 
-      <div className="mb-6">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <CategoryFilter categories={categories} activeSlug={category} />
+        <SortSelect value={sort} category={category} q={q} />
       </div>
 
       {q && (
@@ -138,7 +159,7 @@ export default async function ProductsPage({
             disabled={page <= 1}
           >
             {page > 1 ? (
-              <Link href={pageHref(page - 1, category, q)}>← Previous</Link>
+              <Link href={pageHref(page - 1, category, q, sort)}>← Previous</Link>
             ) : (
               <span>← Previous</span>
             )}
@@ -153,7 +174,7 @@ export default async function ProductsPage({
             disabled={page >= totalPages}
           >
             {page < totalPages ? (
-              <Link href={pageHref(page + 1, category, q)}>Next →</Link>
+              <Link href={pageHref(page + 1, category, q, sort)}>Next →</Link>
             ) : (
               <span>Next →</span>
             )}

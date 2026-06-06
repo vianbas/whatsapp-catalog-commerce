@@ -16,9 +16,11 @@ import { Input } from "@/components/ui/input"
 export function SearchBar({
   defaultQuery = "",
   category,
+  sort,
 }: {
   defaultQuery?: string
   category?: string
+  sort?: string
 }) {
   const router = useRouter()
   const [value, setValue] = React.useState(defaultQuery)
@@ -26,6 +28,7 @@ export function SearchBar({
   function navigate(q: string) {
     const params = new URLSearchParams()
     if (category) params.set("category", category)
+    if (sort && sort !== "featured") params.set("sort", sort)
     if (q.trim()) params.set("q", q.trim())
     const qs = params.toString()
     router.push(`/products${qs ? `?${qs}` : ""}`)
