@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,56 @@ import { formatRupiah } from "@/lib/utils";
 import type { Product, StockStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+/** Lightweight fetch for metadata (separate from the full page query). */
+async function getProductMeta(
+  slug: string
+): Promise<Pick<Product, "name" | "description" | "images"> | null> {
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("products")
+      .select("name, description, images")
+      .eq("slug", slug)
+      .eq("is_active", true)
+      .maybeSingle();
+    return (data as Pick<Product, "name" | "description" | "images"> | null) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const product = await getProductMeta(slug);
+  if (!product) return { title: "Product not found" };
+
+  const description =
+    product.description?.slice(0, 200) ??
+    `${product.name} — order via WhatsApp.`;
+  const image = product.images[0];
+
+  return {
+    title: product.name,
+    description,
+    openGraph: {
+      title: product.name,
+      description,
+      type: "website",
+      ...(image ? { images: [{ url: image }] } : {}),
+    },
+    twitter: {
+      card: image ? "summary_large_image" : "summary",
+      title: product.name,
+      description,
+      ...(image ? { images: [image] } : {}),
+    },
+  };
+}
 
 const STOCK_LABEL: Record<StockStatus, string> = {
   available: "Available",
