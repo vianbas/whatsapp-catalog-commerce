@@ -102,6 +102,12 @@ export default async function ProductsPage({
           >
             ← Home
           </Link>
+          <Link
+            href="/orders"
+            className="text-muted-foreground text-sm hover:underline"
+          >
+            My Orders
+          </Link>
           <CartIndicator />
         </div>
       </div>

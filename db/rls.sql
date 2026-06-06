@@ -82,7 +82,13 @@ create policy "store_settings_admin_all"
 drop policy if exists "orders_public_insert" on public.orders;
 create policy "orders_public_insert"
   on public.orders for insert
-  with check (true);
+  -- Allow anon inserts (customer_id null) or authenticated users setting their own ID.
+  with check (customer_id is null or customer_id = auth.uid());
+
+drop policy if exists "orders_customer_read" on public.orders;
+create policy "orders_customer_read"
+  on public.orders for select
+  using (customer_id = auth.uid());
 
 drop policy if exists "orders_admin_read" on public.orders;
 create policy "orders_admin_read"

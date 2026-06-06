@@ -125,8 +125,20 @@ create table if not exists public.orders (
   created_at timestamptz not null default now()
 );
 
-create index if not exists idx_orders_status     on public.orders (status);
+create index if not exists idx_orders_status      on public.orders (status);
 create index if not exists idx_orders_created_at  on public.orders (created_at desc);
+
+-- Add customer_id for logged-in shoppers to see their own orders.
+do $$ begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_name = 'orders' and column_name = 'customer_id'
+  ) then
+    alter table public.orders
+      add column customer_id uuid references auth.users(id) on delete set null;
+  end if;
+end$$;
+create index if not exists idx_orders_customer_id on public.orders (customer_id);
 
 -- Role-based access ----------------------------------------------------------
 -- is_admin(): used by RLS to gate management to admins. SECURITY DEFINER so it

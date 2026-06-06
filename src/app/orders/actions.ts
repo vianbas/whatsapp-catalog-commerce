@@ -17,10 +17,12 @@ export async function createOrder(
   }
 
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
   const { error } = await supabase.from("orders").insert({
     items: parsed.data.items,
     total: parsed.data.total,
     source: parsed.data.source ?? null,
+    customer_id: user?.id ?? null,
   })
   if (error) return { error: error.message }
 }
