@@ -30,6 +30,7 @@ export const productSchema = z
     compare_at_price: z.number().int().min(0).nullable().optional(),
     images: z.array(z.string().url("Each image must be a valid URL")),
     stock_status: z.enum(STOCK_STATUSES),
+    stock_quantity: z.number().int().min(0).nullable().optional(),
     is_featured: z.boolean(),
     is_active: z.boolean(),
     sort_order: z.number().int().min(0),

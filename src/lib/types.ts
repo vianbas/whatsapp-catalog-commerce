@@ -30,6 +30,7 @@ export interface Product {
   compare_at_price: number | null;
   images: string[];
   stock_status: StockStatus;
+  stock_quantity: number | null;
   is_featured: boolean;
   is_active: boolean;
   sort_order: number;
