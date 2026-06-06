@@ -81,6 +81,7 @@ export interface OrderItem {
 
 export interface Order {
   id: string;
+  customer_id: string | null;
   items: OrderItem[];
   total: number;
   source: string | null;
