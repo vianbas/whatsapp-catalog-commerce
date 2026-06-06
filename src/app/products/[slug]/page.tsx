@@ -7,6 +7,7 @@ import { WhatsappCheckoutButton } from "@/components/whatsapp-checkout-button";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { CartIndicator } from "@/components/cart-indicator";
 import { ProductGallery } from "@/components/product-gallery";
+import { ProductCard } from "@/components/product-card";
 import { createClient } from "@/lib/supabase/server";
 import { formatRupiah } from "@/lib/utils";
 import type { Product, StockStatus } from "@/lib/types";
@@ -69,6 +70,25 @@ const STOCK_LABEL: Record<StockStatus, string> = {
   preorder: "Pre-order",
 };
 
+async function getRelatedProducts(
+  categoryId: string,
+  excludeId: string
+): Promise<Product[]> {
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("products")
+      .select("*")
+      .eq("category_id", categoryId)
+      .eq("is_active", true)
+      .neq("id", excludeId)
+      .limit(4);
+    return (data as Product[] | null) ?? [];
+  } catch {
+    return [];
+  }
+}
+
 async function getProduct(slug: string): Promise<{
   product: Product | null;
   whatsappNumber: string;
@@ -111,6 +131,10 @@ export default async function ProductDetailPage({
   const { product, whatsappNumber, greeting } = await getProduct(slug);
 
   if (!product) notFound();
+
+  const relatedProducts = product.category_id
+    ? await getRelatedProducts(product.category_id, product.id)
+    : [];
 
   const cover = product.images[0];
   const hasDiscount =
@@ -185,6 +209,19 @@ export default async function ProductDetailPage({
           </div>
         </div>
       </div>
+
+      {relatedProducts.length > 0 && (
+        <section className="mt-14">
+          <h2 className="mb-4 text-lg font-semibold tracking-tight">
+            You may also like
+          </h2>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {relatedProducts.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   );
 }
