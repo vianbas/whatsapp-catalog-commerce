@@ -141,8 +141,35 @@ export default async function ProductDetailPage({
     product.compare_at_price != null && product.compare_at_price > product.price;
   const soldOut = product.stock_status === "sold_out";
 
+  const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  const AVAILABILITY: Record<string, string> = {
+    available: "https://schema.org/InStock",
+    sold_out: "https://schema.org/OutOfStock",
+    preorder: "https://schema.org/PreOrder",
+  };
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    ...(product.description ? { description: product.description } : {}),
+    ...(product.images.length > 0 ? { image: product.images } : {}),
+    ...(BASE ? { url: `${BASE}/products/${product.slug}` } : {}),
+    offers: {
+      "@type": "Offer",
+      price: product.price,
+      priceCurrency: "IDR",
+      availability: AVAILABILITY[product.stock_status] ?? "https://schema.org/InStock",
+    },
+  };
+
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
+        }}
+      />
       <div className="mb-6 flex items-center justify-between">
         <Link
           href="/products"
