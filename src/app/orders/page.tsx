@@ -96,25 +96,31 @@ export default async function CustomerOrdersPage() {
               </TableRow>
             ) : (
               orders.map((order) => (
-                <TableRow key={order.id}>
+                <TableRow key={order.id} className="cursor-pointer">
                   <TableCell className="whitespace-nowrap text-sm">
-                    {dateFormatter.format(new Date(order.created_at))}
+                    <Link href={`/orders/${order.id}`} className="hover:underline">
+                      {dateFormatter.format(new Date(order.created_at))}
+                    </Link>
                   </TableCell>
                   <TableCell className="text-muted-foreground max-w-xs text-sm">
-                    <span className="line-clamp-2">
+                    <Link href={`/orders/${order.id}`} className="line-clamp-2 hover:underline">
                       {itemsSummary(order.items)}
-                    </span>
+                    </Link>
                   </TableCell>
                   <TableCell className="font-medium">
-                    {formatRupiah(order.total)}
+                    <Link href={`/orders/${order.id}`} className="hover:underline">
+                      {formatRupiah(order.total)}
+                    </Link>
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant={STATUS_VARIANT[order.status]}
-                      className="capitalize"
-                    >
-                      {order.status}
-                    </Badge>
+                    <Link href={`/orders/${order.id}`}>
+                      <Badge
+                        variant={STATUS_VARIANT[order.status]}
+                        className="capitalize"
+                      >
+                        {order.status}
+                      </Badge>
+                    </Link>
                   </TableCell>
                 </TableRow>
               ))
