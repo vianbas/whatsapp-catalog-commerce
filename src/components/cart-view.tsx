@@ -60,7 +60,8 @@ export function CartView({
     <div className="space-y-6">
       <ul className="divide-y rounded-lg border">
         {items.map((item) => (
-          <li key={item.id} className="flex items-center gap-3 p-3">
+          <li key={item.id} className="flex items-start gap-3 p-3">
+            {/* Thumbnail */}
             <div className="bg-muted relative size-16 shrink-0 overflow-hidden rounded-md">
               {item.image ? (
                 <Image
@@ -77,52 +78,60 @@ export function CartView({
               )}
             </div>
 
-            <div className="min-w-0 flex-1">
-              <Link
-                href={`/products/${item.slug}`}
-                className="line-clamp-1 text-sm font-medium hover:underline"
-              >
-                {item.name}
-              </Link>
-              <p className="text-muted-foreground text-sm">
-                {formatRupiah(item.price)}
-              </p>
-            </div>
+            {/* Details column */}
+            <div className="min-w-0 flex-1 space-y-2">
+              {/* Name row + remove */}
+              <div className="flex items-start justify-between gap-1">
+                <div className="min-w-0">
+                  <Link
+                    href={`/products/${item.slug}`}
+                    className="line-clamp-2 text-sm font-medium leading-snug hover:underline"
+                  >
+                    {item.name}
+                  </Link>
+                  <p className="text-muted-foreground text-sm">
+                    {formatRupiah(item.price)}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Remove ${item.name}`}
+                  onClick={() => removeFromCart(item.id)}
+                  className="shrink-0"
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
 
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon-sm"
-                aria-label="Decrease quantity"
-                onClick={() => setQuantity(item.id, item.quantity - 1)}
-              >
-                <Minus className="size-3.5" />
-              </Button>
-              <span className="w-6 text-center text-sm tabular-nums">
-                {item.quantity}
-              </span>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                aria-label="Increase quantity"
-                onClick={() => setQuantity(item.id, item.quantity + 1)}
-              >
-                <Plus className="size-3.5" />
-              </Button>
+              {/* Qty + line total */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    aria-label="Decrease quantity"
+                    onClick={() => setQuantity(item.id, item.quantity - 1)}
+                  >
+                    <Minus className="size-3.5" />
+                  </Button>
+                  <span className="w-6 text-center text-sm tabular-nums">
+                    {item.quantity}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    aria-label="Increase quantity"
+                    onClick={() => setQuantity(item.id, item.quantity + 1)}
+                  >
+                    <Plus className="size-3.5" />
+                  </Button>
+                </div>
+                <span className="text-sm font-semibold tabular-nums">
+                  {formatRupiah(item.price * item.quantity)}
+                </span>
+              </div>
             </div>
-
-            <div className="w-24 text-right text-sm font-medium tabular-nums">
-              {formatRupiah(item.price * item.quantity)}
-            </div>
-
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`Remove ${item.name}`}
-              onClick={() => removeFromCart(item.id)}
-            >
-              <Trash2 className="size-4" />
-            </Button>
           </li>
         ))}
       </ul>
