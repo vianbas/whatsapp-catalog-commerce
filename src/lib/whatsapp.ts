@@ -21,6 +21,7 @@ export interface WhatsappLineItem {
   name: string
   quantity: number
   price: number
+  product_id?: string
 }
 
 export interface BuildCheckoutUrlOptions {

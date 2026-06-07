@@ -84,7 +84,7 @@ export default async function CheckoutPage({
               recordOrder
               source="checkout"
               items={[
-                { name: product.name, price: product.price, quantity },
+                { name: product.name, price: product.price, quantity, product_id: product.id },
               ]}
               className="w-full"
             />

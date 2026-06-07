@@ -236,7 +236,7 @@ export default async function ProductDetailPage({
               greeting={greeting}
               recordOrder
               source="product"
-              items={[{ name: product.name, price: product.price, quantity: 1 }]}
+              items={[{ name: product.name, price: product.price, quantity: 1, product_id: product.id }]}
               disabled={soldOut}
               variant="outline"
               label={soldOut ? "Sold out" : "Order via WhatsApp"}
