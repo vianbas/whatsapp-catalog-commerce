@@ -13,9 +13,12 @@ create table if not exists public.discount_codes (
   expires_at timestamptz,      -- null = never expires
   is_active  boolean not null default true,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  constraint discount_codes_code_unique unique (lower(code))
+  updated_at timestamptz not null default now()
 );
+
+-- Case-insensitive uniqueness on code (expression indexes must be separate).
+create unique index if not exists uq_discount_codes_code_lower
+  on public.discount_codes (lower(code));
 
 drop trigger if exists trg_discount_codes_updated_at on public.discount_codes;
 create trigger trg_discount_codes_updated_at
