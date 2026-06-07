@@ -122,6 +122,7 @@ export function CartView({
             name: i.name,
             price: i.price,
             quantity: i.quantity,
+            product_id: i.id,
           }))}
           label={`Order ${count} item${count === 1 ? "" : "s"} via WhatsApp`}
           className="sm:w-auto"

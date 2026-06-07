@@ -78,6 +78,7 @@ export interface OrderItem {
   name: string;
   price: number;
   quantity: number;
+  product_id?: string;
 }
 
 export interface Order {
