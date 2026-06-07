@@ -1,5 +1,9 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
+	// Cloudflare Builds (native Git integration) runs the deploy on push to master:
+	//   1. `npx opennextjs-cloudflare build`  →  produces .open-next/
+	//   2. `wrangler deploy`                  →  publishes the Worker + assets
+	// GitHub Actions (ci.yml) is quality-gate only — typecheck, lint, build, audit.
 	"main": ".open-next/worker.js",
 	"name": "whatsapp-catalog-commerce",
 	"compatibility_date": "2026-06-07",

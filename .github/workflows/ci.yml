@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+
+# Quality gate only — no deploy.
+# Actual deployment is handled by Cloudflare Builds (native Git integration):
+#   Push to master → Cloudflare runs `npx opennextjs-cloudflare build`
+#   → then `wrangler deploy` → publishes to the whatsapp-catalog-commerce Worker.
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_STORE_WHATSAPP_NUMBER: ${{ secrets.NEXT_PUBLIC_STORE_WHATSAPP_NUMBER }}
+
+      - name: Security audit
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
