@@ -36,6 +36,11 @@ export interface BuildCheckoutUrlOptions {
   discountCode?: string
   /** Discount amount in rupiah, shown in the message. */
   discountAmount?: number
+  /** Customer delivery details — appended to the message when present. */
+  customerName?: string
+  customerPhone?: string
+  customerAddress?: string
+  notes?: string
 }
 
 /**
@@ -50,6 +55,10 @@ export function buildCheckoutUrl({
   total: totalOverride,
   discountCode,
   discountAmount,
+  customerName,
+  customerPhone,
+  customerAddress,
+  notes,
 }: BuildCheckoutUrlOptions): string {
   const number = normalizeWhatsappNumber(phone)
 
@@ -68,12 +77,22 @@ export function buildCheckoutUrl({
   }
   summaryLines.push(`Total: ${formatRupiah(total)}`)
 
+  const customerLines: string[] = []
+  if (customerName || customerPhone || customerAddress || notes) {
+    customerLines.push("---")
+    if (customerName) customerLines.push(`Nama: ${customerName}`)
+    if (customerPhone) customerLines.push(`HP: ${customerPhone}`)
+    if (customerAddress) customerLines.push(`Alamat: ${customerAddress}`)
+    if (notes) customerLines.push(`Catatan: ${notes}`)
+  }
+
   const message = [
     greeting,
     "",
     ...lines,
     "",
     ...summaryLines,
+    ...customerLines,
   ].join("\n")
 
   return `https://wa.me/${number}?text=${encodeURIComponent(message)}`

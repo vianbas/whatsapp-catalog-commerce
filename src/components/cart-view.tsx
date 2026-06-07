@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { WhatsappCheckoutButton } from "@/components/whatsapp-checkout-button"
 import { DiscountInput } from "@/components/discount-input"
 import { clearCart, removeFromCart, setQuantity, useCart } from "@/lib/cart"
+import { useRouter } from "next/navigation"
 import { formatRupiah } from "@/lib/utils"
 import type { DiscountCode } from "@/lib/validations/discount"
 
@@ -30,6 +31,7 @@ export function CartView({
 }) {
   const { items, count, total } = useCart()
   const [discount, setDiscount] = React.useState<DiscountCode | null>(null)
+  const router = useRouter()
 
   if (count === 0) {
     return (
@@ -162,22 +164,28 @@ export function CartView({
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-        <Button variant="ghost" onClick={clearCart}>
-          Clear cart
+      <div className="flex flex-col gap-3">
+        <Button size="lg" onClick={() => router.push("/checkout")} className="w-full">
+          Proceed to checkout
         </Button>
-        <WhatsappCheckoutButton
-          phone={phone}
-          greeting={greeting}
-          recordOrder
-          source="cart"
-          items={whatsappItems}
-          total={finalTotal}
-          discountCode={discount?.code}
-          discountAmount={discountAmount}
-          label={`Order ${count} item${count === 1 ? "" : "s"} via WhatsApp`}
-          className="sm:w-auto"
-        />
+        <div className="flex items-center gap-3">
+          <WhatsappCheckoutButton
+            phone={phone}
+            greeting={greeting}
+            recordOrder
+            source="cart"
+            items={whatsappItems}
+            total={finalTotal}
+            discountCode={discount?.code}
+            discountAmount={discountAmount}
+            label="Quick order via WhatsApp"
+            variant="outline"
+            className="flex-1"
+          />
+          <Button variant="ghost" onClick={clearCart} className="shrink-0">
+            Clear
+          </Button>
+        </div>
       </div>
     </div>
   )

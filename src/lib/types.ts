@@ -101,5 +101,9 @@ export interface Order {
   total: number;
   source: string | null;
   status: OrderStatus;
+  customer_name: string | null;
+  customer_phone: string | null;
+  customer_address: string | null;
+  notes: string | null;
   created_at: string;
 }
