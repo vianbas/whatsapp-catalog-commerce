@@ -113,6 +113,24 @@ export default async function OrderDetailPage({
               {formatRupiah(order.total)}
             </span>
           </div>
+
+          {(order.customer_name || order.customer_phone || order.customer_address || order.notes) && (
+            <div className="border-t pt-4 space-y-1.5 text-sm">
+              <p className="font-medium">Customer details</p>
+              {order.customer_name && (
+                <p><span className="text-muted-foreground">Name: </span>{order.customer_name}</p>
+              )}
+              {order.customer_phone && (
+                <p><span className="text-muted-foreground">Phone: </span>{order.customer_phone}</p>
+              )}
+              {order.customer_address && (
+                <p><span className="text-muted-foreground">Address: </span>{order.customer_address}</p>
+              )}
+              {order.notes && (
+                <p><span className="text-muted-foreground">Notes: </span>{order.notes}</p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
