@@ -14,23 +14,27 @@ import { Button } from "@/components/ui/button";
 import { OrderStatusSelect } from "@/components/order-status-select";
 import { createClient } from "@/lib/supabase/server";
 import { formatRupiah } from "@/lib/utils";
-import type { Order } from "@/lib/types";
+import type { Order, OrderStatus } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Orders" };
 export const dynamic = "force-dynamic";
+
+const STATUSES: OrderStatus[] = ["new", "contacted", "completed", "cancelled"];
 
 const dateFormatter = new Intl.DateTimeFormat("en-GB", {
   dateStyle: "medium",
   timeStyle: "short",
 });
 
-async function getOrders(): Promise<Order[]> {
+async function getOrders(status?: OrderStatus): Promise<Order[]> {
   try {
     const supabase = await createClient();
-    const { data } = await supabase
+    let query = supabase
       .from("orders")
       .select("*")
       .order("created_at", { ascending: false });
+    if (status) query = query.eq("status", status);
+    const { data } = await query;
     return (data as Order[] | null) ?? [];
   } catch {
     return [];
@@ -42,8 +46,16 @@ function itemsSummary(items: Order["items"]): string {
   return items.map((i) => `${i.name} ×${i.quantity}`).join(", ");
 }
 
-export default async function AdminOrdersPage() {
-  const orders = await getOrders();
+export default async function AdminOrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
+  const { status: statusParam } = await searchParams;
+  const status = STATUSES.includes(statusParam as OrderStatus)
+    ? (statusParam as OrderStatus)
+    : undefined;
+  const orders = await getOrders(status);
 
   return (
     <div className="space-y-6">
@@ -51,7 +63,9 @@ export default async function AdminOrdersPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
           <p className="text-muted-foreground text-sm">
-            WhatsApp checkout inquiries from the storefront.
+            {status
+              ? <>Filtered by <span className="capitalize font-medium">{status}</span> — <Link href="/admin/orders" className="underline">clear</Link></>
+              : "WhatsApp checkout inquiries from the storefront."}
           </p>
         </div>
         {orders.length > 0 && (
