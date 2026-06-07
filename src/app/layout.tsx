@@ -21,6 +21,15 @@ export const metadata: Metadata = {
   },
   description:
     "A lightweight product catalog storefront with WhatsApp-based checkout.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "WA Catalog",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 export default function RootLayout({
