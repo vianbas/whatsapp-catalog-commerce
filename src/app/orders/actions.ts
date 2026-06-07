@@ -24,6 +24,10 @@ export async function createOrder(
     total: parsed.data.total,
     source: parsed.data.source ?? null,
     customer_id: user?.id ?? null,
+    customer_name: parsed.data.customer_name ?? null,
+    customer_phone: parsed.data.customer_phone ?? null,
+    customer_address: parsed.data.customer_address ?? null,
+    notes: parsed.data.notes ?? null,
   })
   if (error) return { error: error.message }
 
