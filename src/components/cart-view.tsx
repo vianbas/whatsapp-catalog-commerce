@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Minus, Package, Plus, Trash2 } from "lucide-react"
@@ -7,8 +8,18 @@ import { Minus, Package, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { WhatsappCheckoutButton } from "@/components/whatsapp-checkout-button"
+import { DiscountInput } from "@/components/discount-input"
 import { clearCart, removeFromCart, setQuantity, useCart } from "@/lib/cart"
 import { formatRupiah } from "@/lib/utils"
+import type { DiscountCode } from "@/lib/validations/discount"
+
+function computeDiscount(subtotal: number, discount: DiscountCode | null): number {
+  if (!discount) return 0
+  if (discount.type === "percent") {
+    return Math.round(subtotal * (discount.value / 100))
+  }
+  return Math.min(discount.value, subtotal)
+}
 
 export function CartView({
   phone,
@@ -18,6 +29,7 @@ export function CartView({
   greeting?: string
 }) {
   const { items, count, total } = useCart()
+  const [discount, setDiscount] = React.useState<DiscountCode | null>(null)
 
   if (count === 0) {
     return (
@@ -32,6 +44,17 @@ export function CartView({
       </Card>
     )
   }
+
+  const discountAmount = computeDiscount(total, discount)
+  const finalTotal = Math.max(0, total - discountAmount)
+
+  // Synthetic discount line sent in the WhatsApp message.
+  const whatsappItems = items.map((i) => ({
+    name: i.name,
+    price: i.price,
+    quantity: i.quantity,
+    product_id: i.id,
+  }))
 
   return (
     <div className="space-y-6">
@@ -104,9 +127,30 @@ export function CartView({
         ))}
       </ul>
 
-      <div className="flex items-center justify-between border-t pt-4">
-        <span className="text-sm font-medium">Total</span>
-        <span className="text-lg font-semibold">{formatRupiah(total)}</span>
+      {/* Promo code */}
+      <DiscountInput onApply={setDiscount} />
+
+      {/* Totals */}
+      <div className="space-y-1 border-t pt-4">
+        {discountAmount > 0 && (
+          <>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span>{formatRupiah(total)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm text-green-600">
+              <span>
+                Discount ({discount!.code}
+                {discount!.type === "percent" ? ` ${discount!.value}%` : ""})
+              </span>
+              <span>− {formatRupiah(discountAmount)}</span>
+            </div>
+          </>
+        )}
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">Total</span>
+          <span className="text-lg font-semibold">{formatRupiah(finalTotal)}</span>
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
@@ -118,12 +162,10 @@ export function CartView({
           greeting={greeting}
           recordOrder
           source="cart"
-          items={items.map((i) => ({
-            name: i.name,
-            price: i.price,
-            quantity: i.quantity,
-            product_id: i.id,
-          }))}
+          items={whatsappItems}
+          total={finalTotal}
+          discountCode={discount?.code}
+          discountAmount={discountAmount}
           label={`Order ${count} item${count === 1 ? "" : "s"} via WhatsApp`}
           className="sm:w-auto"
         />

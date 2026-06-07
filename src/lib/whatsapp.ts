@@ -30,6 +30,12 @@ export interface BuildCheckoutUrlOptions {
   items: WhatsappLineItem[]
   /** Optional greeting prepended to the generated order summary. */
   greeting?: string
+  /** Override the computed total (e.g. after applying a discount). */
+  total?: number
+  /** Promo code applied, shown in the message. */
+  discountCode?: string
+  /** Discount amount in rupiah, shown in the message. */
+  discountAmount?: number
 }
 
 /**
@@ -41,6 +47,9 @@ export function buildCheckoutUrl({
   phone,
   items,
   greeting = "Halo, saya ingin memesan:",
+  total: totalOverride,
+  discountCode,
+  discountAmount,
 }: BuildCheckoutUrlOptions): string {
   const number = normalizeWhatsappNumber(phone)
 
@@ -49,14 +58,22 @@ export function buildCheckoutUrl({
       `• ${item.name} x${item.quantity} — ${formatRupiah(item.price * item.quantity)}`
   )
 
-  const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const total = totalOverride ?? subtotal
+
+  const summaryLines: string[] = []
+  if (discountCode && discountAmount) {
+    summaryLines.push(`Subtotal: ${formatRupiah(subtotal)}`)
+    summaryLines.push(`Diskon (${discountCode}): -${formatRupiah(discountAmount)}`)
+  }
+  summaryLines.push(`Total: ${formatRupiah(total)}`)
 
   const message = [
     greeting,
     "",
     ...lines,
     "",
-    `Total: ${formatRupiah(total)}`,
+    ...summaryLines,
   ].join("\n")
 
   return `https://wa.me/${number}?text=${encodeURIComponent(message)}`

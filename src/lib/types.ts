@@ -74,6 +74,19 @@ export interface AdminUser {
 
 export type OrderStatus = "new" | "contacted" | "completed" | "cancelled";
 
+export interface DiscountCode {
+  id: string;
+  code: string;
+  type: "percent" | "flat";
+  value: number;
+  max_uses: number | null;
+  uses: number;
+  expires_at: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface OrderItem {
   name: string;
   price: number;
