@@ -24,6 +24,9 @@ export function WhatsappCheckoutButton({
   source,
   className,
   disabled,
+  total: totalOverride,
+  discountCode,
+  discountAmount,
 }: {
   phone: string
   items: WhatsappLineItem[]
@@ -34,12 +37,16 @@ export function WhatsappCheckoutButton({
   source?: string
   className?: string
   disabled?: boolean
+  total?: number
+  discountCode?: string
+  discountAmount?: number
 }) {
-  const href = buildCheckoutUrl({ phone, items, greeting })
+  const href = buildCheckoutUrl({ phone, items, greeting, total: totalOverride, discountCode, discountAmount })
 
   function handleClick() {
     if (!recordOrder || items.length === 0) return
-    const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
+    const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
+    const total = totalOverride ?? subtotal
     // Fire-and-forget: don't await, let the link open WhatsApp immediately.
     void createOrder({ items, total, source }).catch(() => {})
   }
