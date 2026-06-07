@@ -2,10 +2,13 @@ import { type NextRequest } from "next/server"
 import { updateSession } from "@/lib/supabase/middleware"
 
 /**
- * Next.js 16 proxy (the renamed `middleware` convention). Runs on every
- * matched request to refresh the Supabase session and protect `/admin`.
+ * Edge middleware — refreshes the Supabase session and protects /admin.
+ *
+ * Using middleware.ts (deprecated in Next.js 16 but still functional) instead
+ * of proxy.ts because proxy.ts is Node.js-only and Cloudflare Workers require
+ * Edge runtime. The Next.js 16 upgrade guide explicitly endorses this pattern.
  */
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   return updateSession(request)
 }
 
