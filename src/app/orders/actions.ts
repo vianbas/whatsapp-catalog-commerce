@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { orderInputSchema, type OrderInput } from "@/lib/validations/order"
+import { sendOrderNotification } from "@/lib/whatsapp-api"
 
 /**
  * Record a WhatsApp checkout as an order. Public — storefront shoppers are
@@ -25,4 +26,7 @@ export async function createOrder(
     customer_id: user?.id ?? null,
   })
   if (error) return { error: error.message }
+
+  // Best-effort API notification — never blocks or fails the order record.
+  void sendOrderNotification(parsed.data.items, parsed.data.total, parsed.data.source).catch(() => {})
 }
