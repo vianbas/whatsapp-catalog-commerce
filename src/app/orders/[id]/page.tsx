@@ -5,9 +5,17 @@ import { CheckCircle2, Circle, XCircle } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { PaymentRetryButton } from "@/components/payment-retry-button"
 import { createClient } from "@/lib/supabase/server"
 import { formatRupiah } from "@/lib/utils"
 import type { Order, OrderStatus } from "@/lib/types"
+
+const PAYMENT_BADGE: Record<string, { label: string; className: string }> = {
+  paid:    { label: "Paid", className: "border-green-600 text-green-700 dark:text-green-400" },
+  pending: { label: "Payment pending", className: "border-yellow-500 text-yellow-700 dark:text-yellow-400" },
+  failed:  { label: "Payment failed", className: "border-destructive text-destructive" },
+  unpaid:  { label: "Unpaid", className: "text-muted-foreground" },
+}
 
 export const metadata: Metadata = { title: "Order details" }
 export const dynamic = "force-dynamic"
@@ -81,18 +89,28 @@ export default async function CustomerOrderDetailPage({
             {dateFormatter.format(new Date(order.created_at))}
           </p>
         </div>
-        <Badge
-          variant={
-            order.status === "completed"
-              ? "outline"
-              : order.status === "cancelled"
-                ? "destructive"
-                : "default"
-          }
-          className="capitalize"
-        >
-          {order.status}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {order.source === "midtrans" && (() => {
+            const p = PAYMENT_BADGE[order.payment_status] ?? PAYMENT_BADGE.unpaid
+            return (
+              <Badge variant="outline" className={p.className}>
+                {p.label}
+              </Badge>
+            )
+          })()}
+          <Badge
+            variant={
+              order.status === "completed"
+                ? "outline"
+                : order.status === "cancelled"
+                  ? "destructive"
+                  : "default"
+            }
+            className="capitalize"
+          >
+            {order.status}
+          </Badge>
+        </div>
       </div>
 
       {/* Status timeline */}
@@ -185,6 +203,20 @@ export default async function CustomerOrderDetailPage({
           <span className="font-semibold tabular-nums">{formatRupiah(order.total)}</span>
         </div>
       </div>
+
+      {/* Payment retry (Midtrans orders that are unpaid or failed) */}
+      {order.source === "midtrans" &&
+        (order.payment_status === "unpaid" || order.payment_status === "failed") && (
+          <>
+            <Separator className="mb-8" />
+            <div className="mb-8">
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                Payment
+              </h2>
+              <PaymentRetryButton orderId={order.id} />
+            </div>
+          </>
+        )}
 
       {/* Delivery details (if captured) */}
       {(order.customer_name || order.customer_phone || order.customer_address || order.notes) && (
