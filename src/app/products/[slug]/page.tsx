@@ -8,9 +8,10 @@ import { AddToCartButton } from "@/components/add-to-cart-button";
 import { CartIndicator } from "@/components/cart-indicator";
 import { ProductGallery } from "@/components/product-gallery";
 import { ProductCard } from "@/components/product-card";
+import { ProductReviews } from "@/components/product-reviews";
 import { createClient } from "@/lib/supabase/server";
 import { formatRupiah } from "@/lib/utils";
-import type { Product, StockStatus } from "@/lib/types";
+import type { Product, ProductReview, StockStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -89,6 +90,21 @@ async function getRelatedProducts(
   }
 }
 
+async function getReviews(productId: string): Promise<ProductReview[]> {
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("product_reviews")
+      .select("*")
+      .eq("product_id", productId)
+      .eq("is_approved", true)
+      .order("created_at", { ascending: false });
+    return (data as ProductReview[] | null) ?? [];
+  } catch {
+    return [];
+  }
+}
+
 async function getProduct(slug: string): Promise<{
   product: Product | null;
   whatsappNumber: string;
@@ -132,9 +148,12 @@ export default async function ProductDetailPage({
 
   if (!product) notFound();
 
-  const relatedProducts = product.category_id
-    ? await getRelatedProducts(product.category_id, product.id)
-    : [];
+  const [relatedProducts, reviews] = await Promise.all([
+    product.category_id
+      ? getRelatedProducts(product.category_id, product.id)
+      : Promise.resolve([]),
+    getReviews(product.id),
+  ]);
 
   const cover = product.images[0];
   const hasDiscount =
@@ -245,6 +264,8 @@ export default async function ProductDetailPage({
           </div>
         </div>
       </div>
+
+      <ProductReviews productId={product.id} initialReviews={reviews} />
 
       {relatedProducts.length > 0 && (
         <section className="mt-14">

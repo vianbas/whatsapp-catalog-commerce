@@ -94,6 +94,16 @@ export interface OrderItem {
   product_id?: string;
 }
 
+export interface ProductReview {
+  id: string;
+  product_id: string;
+  reviewer_name: string;
+  rating: number;
+  body: string | null;
+  is_approved: boolean;
+  created_at: string;
+}
+
 export interface Order {
   id: string;
   customer_id: string | null;
