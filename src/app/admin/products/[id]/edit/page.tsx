@@ -43,6 +43,11 @@ export default async function EditProductPage({
 
   if (!product) notFound();
 
+  const isLowStock =
+    product.stock_quantity !== null &&
+    product.stock_quantity <= 5 &&
+    product.stock_status !== "sold_out";
+
   const defaults: Partial<ProductInput> = {
     name: product.name,
     slug: product.slug,
@@ -70,6 +75,17 @@ export default async function EditProductPage({
           Edit product
         </h1>
       </div>
+
+      {isLowStock && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <p className="font-semibold">Low stock alert</p>
+          <p className="mt-0.5">
+            Only {product.stock_quantity} unit
+            {product.stock_quantity !== 1 ? "s" : ""} remaining. Consider
+            restocking soon.
+          </p>
+        </div>
+      )}
 
       <ProductForm
         categories={categories}

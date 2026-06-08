@@ -35,6 +35,12 @@ async function getProducts(): Promise<Product[]> {
 
 export default async function AdminProductsPage() {
   const products = await getProducts();
+  const lowStock = products.filter(
+    (p) =>
+      p.stock_quantity !== null &&
+      p.stock_quantity <= 5 &&
+      p.stock_status !== "sold_out"
+  );
 
   return (
     <div className="space-y-6">
@@ -47,6 +53,25 @@ export default async function AdminProductsPage() {
           </Link>
         </Button>
       </div>
+
+      {lowStock.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <p className="font-semibold">Low stock alert</p>
+          <ul className="mt-1 list-disc pl-4 space-y-0.5">
+            {lowStock.map((p) => (
+              <li key={p.id}>
+                <Link
+                  href={`/admin/products/${p.id}/edit`}
+                  className="underline underline-offset-2"
+                >
+                  {p.name}
+                </Link>{" "}
+                — {p.stock_quantity} unit{p.stock_quantity !== 1 ? "s" : ""} left
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="rounded-lg border">
         <Table>
