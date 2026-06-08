@@ -1,6 +1,6 @@
 # Project Progress
 
-Live URL: https://whatsapp-catalog-commerce.vikoabastian.workers.dev (Cloudflare Workers)
+Live URL: https://w-commerce.vikoabastian.com (custom domain, Cloudflare Workers)
 Repo: https://github.com/vianbas/whatsapp-catalog-commerce
 
 ---
@@ -28,7 +28,8 @@ Repo: https://github.com/vianbas/whatsapp-catalog-commerce
 | Category pages | `/categories/[slug]` | Per-category product grid |
 | Product detail | `/products/[slug]` | Gallery, stock badge, JSON-LD, related products, star reviews |
 | Cart | `/cart` | localStorage, qty controls, promo codes, proceed-to-checkout |
-| Checkout form | `/checkout` | Collects name, phone, address, notes before opening WhatsApp |
+| Checkout form | `/checkout` | Pay Online (Midtrans Snap) as primary; WhatsApp as fallback |
+| Midtrans payment | `/api/midtrans/snap-token`, `/api/midtrans/webhook` | Snap popup; webhook updates payment_status |
 | Customer orders | `/orders` | Past orders list (login required) |
 | Order detail + timeline | `/orders/[id]` | Status timeline + delivery details |
 
@@ -66,85 +67,47 @@ All run in Supabase SQL editor:
 - `db/discount-codes.sql` — discount_codes table + RLS + apply_discount_code() RPC
 - `db/checkout-customer-info.sql` — adds customer_name, customer_phone, customer_address, notes to orders
 - `db/product-reviews.sql` — product_reviews table + RLS
+- `db/midtrans-payment.sql` — adds payment_status, midtrans_order_id, snap_token, payment_type to orders
+
+---
+
+## Midtrans env vars (production)
+
+| Var | Where | Value |
+|---|---|---|
+| `MIDTRANS_SERVER_KEY` | Wrangler secret (set via `wrangler secret put`) | sandbox key |
+| `NEXT_PUBLIC_MIDTRANS_CLIENT_KEY` | `next.config.ts` env block (hardcoded) | `Mid-client-2vJCgCtO5msfauEP` |
+| `MIDTRANS_IS_PRODUCTION` | `wrangler.jsonc` vars | `"false"` (sandbox) |
+| `NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION` | `next.config.ts` env block (hardcoded) | `"false"` (sandbox) |
+
+Webhook URL registered in Midtrans dashboard:
+`https://w-commerce.vikoabastian.com/api/midtrans/webhook`
+
+> **Note:** `NEXT_PUBLIC_*` vars must be hardcoded in `next.config.ts` — reading from
+> `process.env` inside the env block does not work in Cloudflare Builds.
 
 ---
 
 ## Features — PENDING (not yet built)
 
-*(none — all features shipped)*
-**Offline reference docs:** `docs/midtrans/REFERENCE.md` (distilled from official SDK source).
-Full clones at `~/code/midtrans-reference/` (outside this repo).
+### 9. Payment status on order detail page
 
-#### New env vars needed
+After a Midtrans payment, the `payment_status` column is updated by the webhook but
+`/orders/[id]` doesn't display it. Customer has no way to see if their payment was received.
 
-| Var | Where | Notes |
-|---|---|---|
-| `MIDTRANS_SERVER_KEY` | Wrangler secret | Sandbox: starts with `SB-Mid-server-...` |
-| `NEXT_PUBLIC_MIDTRANS_CLIENT_KEY` | `next.config.ts` env block | Baked into bundle at build |
-| `MIDTRANS_IS_PRODUCTION` | `wrangler.jsonc` vars | `"false"` for sandbox |
+Key files:
+- `src/app/orders/[id]/page.tsx` — add payment status badge
+- `src/app/admin/orders/[id]/page.tsx` — add payment status for admin view
 
-#### DB migration needed
+### 10. Payment retry from order page
 
-Add to `orders` table (new file: `db/midtrans-payment.sql`):
+If a customer closes the Snap popup (cancel) or payment fails, the order exists with
+`payment_status: 'unpaid'` but there is no way to retry payment from `/orders/[id]`.
 
-```sql
-ALTER TABLE orders
-  ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'unpaid',
-  ADD COLUMN IF NOT EXISTS midtrans_order_id TEXT,
-  ADD COLUMN IF NOT EXISTS snap_token TEXT,
-  ADD COLUMN IF NOT EXISTS payment_type TEXT;
-```
-
-#### Files to create / change
-
-| File | What |
-|---|---|
-| `src/app/api/midtrans/snap-token/route.ts` | POST — receives cart + customer info, creates Snap token, returns it |
-| `src/app/api/midtrans/webhook/route.ts` | POST — verifies SHA-512 sig, updates `payment_status` on order |
-| `src/components/midtrans-checkout-button.tsx` | Loads `snap.js`, calls `snap.pay(token, {...})` |
-| `src/app/checkout/page.tsx` | Add payment step after existing checkout form |
-| `src/lib/midtrans.ts` | `createSnapToken()` and `verifyWebhookSignature()` helpers |
-| `src/lib/types.ts` | Add `payment_status`, `midtrans_order_id`, `snap_token`, `payment_type` to `Order` |
-| `wrangler.jsonc` | Add `MIDTRANS_IS_PRODUCTION` var |
-| `next.config.ts` | Add `NEXT_PUBLIC_MIDTRANS_CLIENT_KEY` to env block |
-| `db/midtrans-payment.sql` | Migration: 4 new columns on orders |
-
-#### Flow
-
-```
-[Checkout form] → [POST /api/midtrans/snap-token]
-                       ↓ creates order (status: pending_payment)
-                       ↓ calls Midtrans Snap POST /snap/v1/transactions
-                       ↓ returns { snapToken }
-               → [snap.pay(snapToken)] (Midtrans popup opens)
-               → onSuccess/onPending callbacks → redirect to /orders/[id]
-               ↓
-[POST /api/midtrans/webhook] ← Midtrans POSTs on status change
-       ↓ verify SHA-512 signature
-       ↓ update orders.payment_status
-       ↓ if settled → also trigger WhatsApp notification (existing sendStatusNotification)
-       ↓ return 200
-```
-
-#### Webhook signature check (Web Crypto — Workers compatible)
-
-```ts
-// order_id + status_code + gross_amount + ServerKey → SHA-512 hex
-const raw = body.order_id + body.status_code + body.gross_amount + serverKey;
-const buf = await crypto.subtle.digest("SHA-512", new TextEncoder().encode(raw));
-const sig = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
-if (sig !== body.signature_key) return new Response(null, { status: 401 });
-```
-
-#### `transaction_status` → `payment_status` mapping
-
-| Midtrans | Our `payment_status` |
-|---|---|
-| `capture` + fraud `accept` | `paid` |
-| `settlement` | `paid` |
-| `pending` | `pending` |
-| `deny` | `pending` (allow retry) |
-| `cancel` / `expire` / `failure` | `failed` |
+Flow needed:
+- `/orders/[id]` shows a "Complete payment" button when `payment_status` is `unpaid` or `failed`
+- Button calls `/api/midtrans/snap-token` with the existing order ID (or creates a new snap token for the same order)
+- Opens Snap popup; on success/pending redirects back to `/orders/[id]`
 
 ---
 
@@ -154,6 +117,7 @@ if (sig !== body.signature_key) return new Response(null, { status: 401 });
 |---|---|
 | WhatsApp message builder | `src/lib/whatsapp.ts` |
 | Meta Cloud API client | `src/lib/whatsapp-api.ts` |
+| Midtrans API client | `src/lib/midtrans.ts` |
 | Order create action | `src/app/orders/actions.ts` |
 | Admin order status action | `src/app/admin/orders/actions.ts` |
 | Cart store (localStorage) | `src/lib/cart.ts` |
