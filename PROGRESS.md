@@ -40,6 +40,8 @@ Repo: https://github.com/vianbas/whatsapp-catalog-commerce
 | Orders list (filter by status) | `/admin/orders` |
 | Order detail + customer info | `/admin/orders/[id]` |
 | Products (create, edit, images, stock, featured) | `/admin/products` |
+| Low-stock alert banner (stock ≤ 5) | `/admin/products`, `/admin/products/[id]/edit` |
+| CSV bulk product import | `/admin/products/import` |
 | Categories | `/admin/categories` |
 | Discount codes (percent + flat) | `/admin/discounts` |
 | Product review moderation | `/admin/reviews` |
@@ -51,6 +53,7 @@ Repo: https://github.com/vianbas/whatsapp-catalog-commerce
 - Loading skeletons on all major pages (instant feedback on navigation)
 - SEO: sitemap.xml, robots.txt, JSON-LD Product structured data, Open Graph
 - Meta WhatsApp Cloud API webhook at `/api/webhook/whatsapp`
+- WhatsApp status notification to customer on admin order status change (fire-and-forget)
 - Stock decrement trigger on order insert (DB-level)
 
 ---
@@ -68,25 +71,7 @@ All run in Supabase SQL editor:
 
 ## Features — PENDING (not yet built)
 
-### 1. Admin WhatsApp notification on order status change
-When admin changes an order's status, fire a WhatsApp text to `orders.customer_phone` if it exists.
-- Add `sendStatusNotification(phone, status)` to `src/lib/whatsapp-api.ts`
-- Call fire-and-forget from `src/app/admin/orders/actions.ts` after status update
-- Silent no-op if `WHATSAPP_PHONE_NUMBER_ID` / `WHATSAPP_ACCESS_TOKEN` not set
-
-### 2. Low-stock alert banner (admin, in-app only)
-Amber warning banner in admin when products are running low.
-- `/admin/products` list: banner listing products where `stock_quantity <= 5` and `stock_status != sold_out`
-- Product edit page: same inline alert on the specific product
-- Tailwind: `bg-amber-50 border border-amber-200 text-amber-800`
-
-### 3. CSV bulk product import
-Admin page to upload a CSV and bulk-create products.
-- New page: `/admin/products/import`
-- Client: FileReader + manual CSV parse (no library), preview table, import button
-- Server action: slugify name → look up category_id by slug → insert products
-- Expected CSV columns: `name, price, description, stock_quantity, category_slug`
-- Add "Import CSV" link next to "New product" on the products list
+None — all planned features are live. ✓
 
 ---
 
