@@ -45,6 +45,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const paymentStatus = mapPaymentStatus(body.transaction_status, body.fraud_status)
 
+  // Retry transactions use "{orderId}-r{timestamp}" as Midtrans order_id.
+  // Strip the suffix so we can look up by the original midtrans_order_id.
+  const baseOrderId = body.order_id.includes("-r")
+    ? body.order_id.substring(0, body.order_id.lastIndexOf("-r"))
+    : body.order_id
+
   const supabase = await createClient()
   const { data: order, error } = await supabase
     .from("orders")
@@ -52,7 +58,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       payment_status: paymentStatus,
       payment_type: body.payment_type ?? null,
     })
-    .eq("midtrans_order_id", body.order_id)
+    .eq("midtrans_order_id", baseOrderId)
     .select("id, customer_phone, status")
     .single()
 

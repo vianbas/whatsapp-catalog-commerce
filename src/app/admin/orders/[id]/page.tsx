@@ -80,6 +80,23 @@ export default async function OrderDetailPage({
           <p className="text-muted-foreground text-sm capitalize">
             Source: {order.source ?? "—"} · ID: {order.id}
           </p>
+          {order.source === "midtrans" && (
+            <p className="text-sm">
+              <span className="text-muted-foreground">Payment: </span>
+              <span className={
+                order.payment_status === "paid"
+                  ? "font-medium text-green-700 dark:text-green-400"
+                  : order.payment_status === "failed"
+                    ? "font-medium text-destructive"
+                    : order.payment_status === "pending"
+                      ? "font-medium text-yellow-700 dark:text-yellow-400"
+                      : "text-muted-foreground"
+              }>
+                {order.payment_status}
+                {order.payment_type ? ` · ${order.payment_type}` : ""}
+              </span>
+            </p>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           <Table>
