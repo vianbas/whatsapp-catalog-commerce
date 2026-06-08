@@ -33,6 +33,13 @@ const STATUS_VARIANT: Record<
   cancelled: "outline",
 };
 
+const PAYMENT_BADGE: Record<string, { label: string; className: string }> = {
+  paid:    { label: "Paid", className: "border-green-600 text-green-700 dark:text-green-400" },
+  pending: { label: "Pending", className: "border-yellow-500 text-yellow-700 dark:text-yellow-400" },
+  failed:  { label: "Failed", className: "border-destructive text-destructive" },
+  unpaid:  { label: "Unpaid", className: "text-muted-foreground" },
+};
+
 function itemsSummary(items: Order["items"]): string {
   if (!Array.isArray(items) || items.length === 0) return "—";
   return items.map((i) => `${i.name} ×${i.quantity}`).join(", ");
@@ -113,13 +120,21 @@ export default async function CustomerOrdersPage() {
                     </Link>
                   </TableCell>
                   <TableCell>
-                    <Link href={`/orders/${order.id}`}>
+                    <Link href={`/orders/${order.id}`} className="flex flex-wrap gap-1">
                       <Badge
                         variant={STATUS_VARIANT[order.status]}
                         className="capitalize"
                       >
                         {order.status}
                       </Badge>
+                      {order.source === "midtrans" && (() => {
+                        const p = PAYMENT_BADGE[order.payment_status] ?? PAYMENT_BADGE.unpaid;
+                        return (
+                          <Badge variant="outline" className={p.className}>
+                            {p.label}
+                          </Badge>
+                        );
+                      })()}
                     </Link>
                   </TableCell>
                 </TableRow>
