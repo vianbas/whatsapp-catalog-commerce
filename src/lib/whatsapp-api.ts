@@ -68,6 +68,36 @@ function formatRp(amount: number): string {
   return `Rp ${amount.toLocaleString("id-ID")}`
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  new: "Pesanan Anda telah kami terima",
+  contacted: "Pesanan Anda sedang kami proses",
+  completed: "Pesanan Anda telah selesai",
+  cancelled: "Pesanan Anda telah dibatalkan",
+}
+
+/**
+ * Send a status-update text to the customer's phone number.
+ * Silently no-ops when sending env vars are absent or phone is falsy.
+ */
+export async function sendStatusNotification(
+  phone: string,
+  orderId: string,
+  status: string
+): Promise<void> {
+  if (
+    !phone ||
+    !process.env.WHATSAPP_API_PHONE_NUMBER_ID ||
+    !process.env.WHATSAPP_API_TOKEN
+  )
+    return
+
+  const label = STATUS_LABELS[status] ?? `Status diperbarui: ${status}`
+  const shortId = orderId.slice(0, 8).toUpperCase()
+  const body = `[Update Pesanan #${shortId}]\n${label}.\n\nTerima kasih telah berbelanja! 🙏`
+
+  await sendTextMessage(phone, body)
+}
+
 /**
  * Send a plain-text order notification to the configured store owner number.
  * Silently no-ops when env vars are absent.

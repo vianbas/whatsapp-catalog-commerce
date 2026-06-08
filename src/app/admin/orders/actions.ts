@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 
 import { createClient } from "@/lib/supabase/server"
 import type { OrderStatus } from "@/lib/types"
+import { sendStatusNotification } from "@/lib/whatsapp-api"
 
 export type ActionResult = { error: string } | void
 
@@ -26,11 +27,17 @@ export async function updateOrderStatus(
   if (!STATUSES.includes(status)) return { error: "Invalid status" }
 
   const supabase = await requireSupabase()
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("orders")
     .update({ status })
     .eq("id", id)
+    .select("customer_phone")
+    .single()
   if (error) return { error: error.message }
+
+  if (data?.customer_phone) {
+    void sendStatusNotification(data.customer_phone, id, status).catch(() => {})
+  }
 
   revalidatePath("/admin/orders")
 }
