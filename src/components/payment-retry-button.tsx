@@ -16,6 +16,7 @@ export function PaymentRetryButton({ orderId }: { orderId: string }) {
   const router = useRouter()
   const [snapReady, setSnapReady] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
+  const [success, setSuccess] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
@@ -44,6 +45,14 @@ export function PaymentRetryButton({ orderId }: { orderId: string }) {
       body: JSON.stringify({ orderId }),
     })
 
+    // 409 means the order is already paid — webhook landed before we refreshed.
+    // Refresh the page to show the updated status.
+    if (res.status === 409) {
+      setLoading(false)
+      router.refresh()
+      return
+    }
+
     if (!res.ok) {
       setError("Payment setup failed. Please try again.")
       setLoading(false)
@@ -54,14 +63,28 @@ export function PaymentRetryButton({ orderId }: { orderId: string }) {
     setLoading(false)
 
     window.snap?.pay(snapToken, {
-      onSuccess: () => router.refresh(),
-      onPending: () => router.refresh(),
+      onSuccess: () => {
+        setSuccess(true)
+        // Delay refresh so the webhook has time to update payment_status in the DB.
+        setTimeout(() => router.refresh(), 4000)
+      },
+      onPending: () => {
+        setTimeout(() => router.refresh(), 4000)
+      },
       onError: () => setError("Payment failed. Please try again."),
       onClose: () => setError("Payment cancelled."),
     })
   }
 
   if (!CLIENT_KEY) return null
+
+  if (success) {
+    return (
+      <p className="text-center text-sm font-medium text-green-700 dark:text-green-400">
+        Payment received! Updating status…
+      </p>
+    )
+  }
 
   return (
     <div className="space-y-2">

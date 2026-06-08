@@ -122,11 +122,13 @@ export function CheckoutForm({
     window.snap?.pay(snapToken, {
       onSuccess: () => {
         clearCart()
-        router.push(`/orders/${orderId}`)
+        // Delay navigation so the Midtrans webhook has time to update payment_status
+        // before the order detail page is rendered.
+        setTimeout(() => router.push(`/orders/${orderId}`), 4000)
       },
       onPending: () => {
         clearCart()
-        router.push(`/orders/${orderId}`)
+        setTimeout(() => router.push(`/orders/${orderId}`), 4000)
       },
       onError: () => {
         setMidtransError("Payment failed. Please try again.")
