@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, Upload } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,12 +40,20 @@ export default async function AdminProductsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Products</h1>
-        <Button asChild>
-          <Link href="/admin/products/new">
-            <Plus className="size-4" aria-hidden />
-            New product
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline">
+            <Link href="/admin/products/import">
+              <Upload className="size-4" aria-hidden />
+              Import CSV
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/admin/products/new">
+              <Plus className="size-4" aria-hidden />
+              New product
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-lg border">
