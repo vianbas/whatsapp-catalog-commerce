@@ -31,6 +31,7 @@
 	"vars": {
 		"NEXT_PUBLIC_SUPABASE_URL": "https://mgotkijtzksviuqrkbew.supabase.co",
 		"NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_VRIK_TUZdjwywmz2-P9RBw_o3sz0K-T",
-		"NEXT_PUBLIC_STORE_WHATSAPP_NUMBER": "6281234567890"
+		"NEXT_PUBLIC_STORE_WHATSAPP_NUMBER": "6281234567890",
+		"MIDTRANS_IS_PRODUCTION": "false"
 	}
 }

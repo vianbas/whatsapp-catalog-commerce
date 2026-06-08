@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
+import { MidtransCheckoutButton } from "@/components/midtrans-checkout-button"
 import { clearCart, useCart } from "@/lib/cart"
 import { formatRupiah } from "@/lib/utils"
 import { buildCheckoutUrl } from "@/lib/whatsapp"
@@ -27,6 +28,8 @@ export function CheckoutForm({
 }) {
   const { items, count, total } = useCart()
   const router = useRouter()
+
+  const [midtransError, setMidtransError] = React.useState<string | null>(null)
 
   const {
     register,
@@ -48,13 +51,19 @@ export function CheckoutForm({
     )
   }
 
-  async function onSubmit(values: CheckoutFormValues) {
-    const whatsappItems = items.map((i) => ({
-      name: i.name,
-      price: i.price,
-      quantity: i.quantity,
-      product_id: i.id,
-    }))
+  function buildCartItems() {
+    return {
+      whatsappItems: items.map((i) => ({
+        name: i.name,
+        price: i.price,
+        quantity: i.quantity,
+        product_id: i.id,
+      })),
+    }
+  }
+
+  async function onWhatsAppSubmit(values: CheckoutFormValues) {
+    const { whatsappItems } = buildCartItems()
 
     const url = buildCheckoutUrl({
       phone,
@@ -82,8 +91,54 @@ export function CheckoutForm({
     router.push("/orders")
   }
 
+  async function onMidtransSubmit(values: CheckoutFormValues) {
+    setMidtransError(null)
+    const { whatsappItems } = buildCartItems()
+
+    const res = await fetch("/api/midtrans/snap-token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: whatsappItems,
+        total,
+        source: "midtrans",
+        customer_name: values.name,
+        customer_phone: values.phone,
+        customer_address: values.address || undefined,
+        notes: values.notes || undefined,
+      }),
+    })
+
+    if (!res.ok) {
+      setMidtransError("Payment setup failed. Please try again.")
+      return
+    }
+
+    const { snapToken, orderId } = (await res.json()) as {
+      snapToken: string
+      orderId: string
+    }
+
+    window.snap?.pay(snapToken, {
+      onSuccess: () => {
+        clearCart()
+        router.push(`/orders/${orderId}`)
+      },
+      onPending: () => {
+        clearCart()
+        router.push(`/orders/${orderId}`)
+      },
+      onError: () => {
+        setMidtransError("Payment failed. Please try again.")
+      },
+      onClose: () => {
+        setMidtransError("Payment cancelled. You can try again whenever you're ready.")
+      },
+    })
+  }
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+    <form onSubmit={handleSubmit(onWhatsAppSubmit)} className="space-y-8">
       {/* Order summary */}
       <div className="rounded-lg border">
         <div className="divide-y">
@@ -163,13 +218,29 @@ export function CheckoutForm({
         </div>
       </div>
 
-      <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
+      <MidtransCheckoutButton
+        onClick={handleSubmit(onMidtransSubmit)}
+        disabled={isSubmitting}
+      />
+
+      {midtransError && (
+        <p className="text-destructive text-center text-sm">{midtransError}</p>
+      )}
+
+      <div className="relative">
+        <Separator />
+        <span className="bg-background text-muted-foreground absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-2 text-xs">
+          or
+        </span>
+      </div>
+
+      <Button type="submit" className="w-full" size="lg" variant="outline" disabled={isSubmitting}>
         <MessageCircle className="size-4" aria-hidden />
-        {isSubmitting ? "Opening WhatsApp…" : `Order ${count} item${count === 1 ? "" : "s"} via WhatsApp`}
+        {isSubmitting ? "Opening WhatsApp…" : `Order via WhatsApp`}
       </Button>
 
       <p className="text-muted-foreground text-center text-xs">
-        Your cart will be cleared and a pre-filled WhatsApp message will open.
+        Pay online with card, GoPay, QRIS, or bank transfer — or chat first via WhatsApp.
       </p>
     </form>
   )

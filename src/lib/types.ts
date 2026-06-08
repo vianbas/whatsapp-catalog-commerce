@@ -115,5 +115,9 @@ export interface Order {
   customer_phone: string | null;
   customer_address: string | null;
   notes: string | null;
+  payment_status: string;
+  midtrans_order_id: string | null;
+  snap_token: string | null;
+  payment_type: string | null;
   created_at: string;
 }
