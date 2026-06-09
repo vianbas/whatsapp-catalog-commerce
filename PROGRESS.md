@@ -67,7 +67,7 @@ Repo: https://github.com/vianbas/whatsapp-catalog-commerce
 - **Invoice PDF** (PR #71) — PDF invoice generated with `pdf-lib` and attached to confirmation emails via Resend `attachments`
 - **Guest email link fix** (PR #73) — confirmation/tracking emails for guest orders link to `/track?id=...` instead of login-gated `/orders/[id]`
 - **Guest checkout redirect fix** (PR #75) — after WhatsApp/Midtrans checkout, guests are redirected to `/track?id=...` instead of login-gated `/orders`
-- Stock decrement trigger on order insert (DB-level)
+- **Stock reservation** (PR #77) — atomic check-and-decrement trigger on order insert; concurrent orders for the last unit can't oversell (one wins the row lock, the other's INSERT rolls back with a stock error surfaced to the customer)
 
 ---
 
@@ -81,6 +81,7 @@ Repo: https://github.com/vianbas/whatsapp-catalog-commerce
 - `db/customer-email.sql` — adds customer_email to orders (PR #63)
 - `db/shipping-tracking.sql` — adds courier, tracking_number to orders (PR #69, run 2026-06-09)
 - `db/track-order-rpc.sql` — creates track_order() SECURITY DEFINER RPC (PR #70, run 2026-06-09)
+- `db/stock-reservation.sql` — replaces decrement trigger with atomic check-and-decrement (PR #77, run 2026-06-10)
 
 ---
 
@@ -112,14 +113,6 @@ Domain `vikoabastian.com` verified in Resend. Sandbox sender `onboarding@resend.
 
 ---
 
-## Open PRs — awaiting merge
-
-| PR | Feature | Branch | DB migration? |
-|---|---|---|---|
-| #77 | Fix stock reservation — atomic check-and-decrement | `feature/stock-reservation` | Yes — `db/stock-reservation.sql` |
-
----
-
 ## Features — PENDING
 
 ### WhatsApp message templates (skipped indefinitely)
@@ -140,6 +133,7 @@ Current free-form WA messages only work within a 24-hr customer service window. 
 - **Webhook notification idempotency** — `.neq("payment_status","paid")` on the Midtrans webhook UPDATE means retries return null order and skip notifications; prevents duplicate WA/email on Midtrans retries
 - **Email HTML escaping** — always use `escapeHtml()` from `src/lib/email.ts` before interpolating user-supplied values (customerName, item names) into HTML strings
 - **Currency formatting** — use `formatRupiah` from `src/lib/utils.ts` everywhere; do not create local `formatRp` copies (they produce inconsistent output)
+- **Stock reservation** — the `decrement_stock_on_order` trigger raises `Stok tidak cukup untuk produk: <name>` when stock is insufficient, which rolls back the order INSERT. Callers must surface this: WhatsApp checkout `createOrder` must be awaited (not fire-and-forget) and snap-token route forwards the message. `NULL` stock_quantity = unlimited and is skipped.
 
 ---
 
