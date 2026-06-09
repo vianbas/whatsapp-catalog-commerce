@@ -21,7 +21,7 @@ export async function createOrder(
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const orderId = crypto.randomUUID()
+  const orderId = parsed.data.id ?? crypto.randomUUID()
 
   const { error } = await supabase.from("orders").insert({
     id: orderId,

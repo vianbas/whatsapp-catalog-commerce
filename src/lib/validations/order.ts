@@ -8,6 +8,7 @@ export const orderItemSchema = z.object({
 })
 
 export const orderInputSchema = z.object({
+  id: z.string().uuid().optional(),
   items: z.array(orderItemSchema).min(1, "An order must have at least one item"),
   total: z.number().int().min(0),
   source: z.string().trim().max(40).optional(),
