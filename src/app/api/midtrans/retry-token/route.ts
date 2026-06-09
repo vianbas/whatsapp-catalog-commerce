@@ -62,5 +62,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Payment gateway error" }, { status: 502 })
   }
 
+  // Update midtrans_order_id so check-status can query the correct transaction.
+  await supabase
+    .from("orders")
+    .update({ midtrans_order_id: retryMidtransId })
+    .eq("id", orderId)
+
   return NextResponse.json({ snapToken })
 }
