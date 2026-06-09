@@ -119,5 +119,8 @@ export interface Order {
   midtrans_order_id: string | null;
   snap_token: string | null;
   payment_type: string | null;
+  customer_email: string | null;
+  courier: string | null;
+  tracking_number: string | null;
   created_at: string;
 }

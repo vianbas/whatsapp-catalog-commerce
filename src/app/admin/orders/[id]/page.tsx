@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { OrderStatusSelect } from "@/components/order-status-select";
+import { OrderTrackingForm } from "@/components/order-tracking-form";
 import { createClient } from "@/lib/supabase/server";
 import { formatRupiah } from "@/lib/utils";
 import type { Order } from "@/lib/types";
@@ -148,6 +149,27 @@ export default async function OrderDetailPage({
               )}
             </div>
           )}
+
+          <div className="border-t pt-4 space-y-3">
+            <p className="text-sm font-medium">Shipping tracking</p>
+            {(order.courier || order.tracking_number) && (
+              <div className="text-sm space-y-1 mb-3">
+                {order.courier && (
+                  <p><span className="text-muted-foreground">Courier: </span>{order.courier}</p>
+                )}
+                {order.tracking_number && (
+                  <p><span className="text-muted-foreground">Tracking no.: </span>
+                    <span className="font-mono">{order.tracking_number}</span>
+                  </p>
+                )}
+              </div>
+            )}
+            <OrderTrackingForm
+              orderId={order.id}
+              courier={order.courier}
+              trackingNumber={order.tracking_number}
+            />
+          </div>
         </CardContent>
       </Card>
     </div>

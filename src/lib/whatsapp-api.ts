@@ -132,6 +132,35 @@ export async function sendOrderConfirmationToCustomer(
 }
 
 /**
+ * Send a shipping tracking notification to the customer's own phone number.
+ */
+export async function sendTrackingNotification(
+  phone: string,
+  orderId: string,
+  courier: string,
+  trackingNumber: string
+): Promise<void> {
+  if (
+    !phone ||
+    !process.env.WHATSAPP_API_PHONE_NUMBER_ID ||
+    !process.env.WHATSAPP_API_TOKEN
+  )
+    return
+
+  const shortId = orderId.slice(0, 8).toUpperCase()
+  const body = [
+    `📦 *Pesanan #${shortId} Sedang Dikirim*`,
+    "",
+    `Kurir: ${courier}`,
+    `No. Resi: ${trackingNumber}`,
+    "",
+    "Gunakan nomor resi di atas untuk melacak paket Anda. Terima kasih! 🙏",
+  ].join("\n")
+
+  await sendTextMessage(phone, body)
+}
+
+/**
  * Send a plain-text order notification to the configured store owner number.
  * Silently no-ops when env vars are absent.
  */
