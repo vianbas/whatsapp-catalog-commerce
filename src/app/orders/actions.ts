@@ -2,7 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { orderInputSchema, type OrderInput } from "@/lib/validations/order"
-import { sendOrderNotification } from "@/lib/whatsapp-api"
+import { sendOrderNotification, sendOrderConfirmationToCustomer } from "@/lib/whatsapp-api"
+import { sendOrderConfirmationEmail } from "@/lib/email"
 
 /**
  * Record a WhatsApp checkout as an order. Public — storefront shoppers are
@@ -19,18 +20,31 @@ export async function createOrder(
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+
+  const orderId = crypto.randomUUID()
+
   const { error } = await supabase.from("orders").insert({
+    id: orderId,
     items: parsed.data.items,
     total: parsed.data.total,
     source: parsed.data.source ?? null,
     customer_id: user?.id ?? null,
     customer_name: parsed.data.customer_name ?? null,
     customer_phone: parsed.data.customer_phone ?? null,
+    customer_email: parsed.data.customer_email || null,
     customer_address: parsed.data.customer_address ?? null,
     notes: parsed.data.notes ?? null,
   })
   if (error) return { error: error.message }
 
-  // Best-effort API notification — never blocks or fails the order record.
-  void sendOrderNotification(parsed.data.items, parsed.data.total, parsed.data.source).catch(() => {})
+  const { items, total, customer_phone, customer_email, customer_name } = parsed.data
+
+  // Fire-and-forget notifications — never block or fail the order record.
+  void sendOrderNotification(items, total, parsed.data.source).catch(() => {})
+  if (customer_phone) {
+    void sendOrderConfirmationToCustomer(customer_phone, orderId, items, total).catch(() => {})
+  }
+  if (customer_email) {
+    void sendOrderConfirmationEmail(customer_email, orderId, items, total, customer_name).catch(() => {})
+  }
 }

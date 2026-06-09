@@ -13,6 +13,7 @@ export const orderInputSchema = z.object({
   source: z.string().trim().max(40).optional(),
   customer_name: z.string().trim().max(120).optional(),
   customer_phone: z.string().trim().max(30).optional(),
+  customer_email: z.string().trim().email("Enter a valid email").max(254).optional().or(z.literal("")),
   customer_address: z.string().trim().max(500).optional(),
   notes: z.string().trim().max(500).optional(),
 })
@@ -27,6 +28,7 @@ export const checkoutFormSchema = z.object({
     .min(1, "WhatsApp number is required")
     .max(30)
     .regex(/^[\d\s\-+()]+$/, "Enter a valid phone number"),
+  email: z.string().trim().email("Enter a valid email").max(254).optional().or(z.literal("")),
   address: z.string().trim().max(500).optional(),
   notes: z.string().trim().max(500).optional(),
 })

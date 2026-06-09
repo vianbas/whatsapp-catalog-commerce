@@ -99,6 +99,41 @@ export async function sendStatusNotification(
 }
 
 /**
+ * Send an order confirmation to the customer's own phone number.
+ * Includes itemised summary and order ID.
+ */
+export async function sendOrderConfirmationToCustomer(
+  phone: string,
+  orderId: string,
+  items: OrderNotificationItem[],
+  total: number
+): Promise<void> {
+  if (
+    !phone ||
+    !process.env.WHATSAPP_API_PHONE_NUMBER_ID ||
+    !process.env.WHATSAPP_API_TOKEN
+  )
+    return
+
+  const shortId = orderId.slice(0, 8).toUpperCase()
+  const lines = items.map(
+    (i) => `• ${i.name} x${i.quantity} — ${formatRp(i.price * i.quantity)}`
+  )
+
+  const body = [
+    `✅ *Pesanan #${shortId} Dikonfirmasi*`,
+    "",
+    ...lines,
+    "",
+    `*Total: ${formatRp(total)}*`,
+    "",
+    "Kami akan segera memproses pesanan Anda. Terima kasih! 🙏",
+  ].join("\n")
+
+  await sendTextMessage(phone, body)
+}
+
+/**
  * Send a plain-text order notification to the configured store owner number.
  * Silently no-ops when env vars are absent.
  */
