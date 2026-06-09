@@ -82,6 +82,7 @@ export function CheckoutForm({
       source: "checkout",
       customer_name: values.name,
       customer_phone: values.phone,
+      customer_email: values.email || undefined,
       customer_address: values.address || undefined,
       notes: values.notes || undefined,
     }).catch(() => {})
@@ -104,6 +105,7 @@ export function CheckoutForm({
         source: "midtrans",
         customer_name: values.name,
         customer_phone: values.phone,
+        customer_email: values.email || undefined,
         customer_address: values.address || undefined,
         notes: values.notes || undefined,
       }),
@@ -194,6 +196,22 @@ export function CheckoutForm({
           />
           {errors.phone && (
             <p className="text-destructive text-xs">{errors.phone.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="email">
+            Email <span className="text-muted-foreground text-xs font-normal">(optional — for order confirmation)</span>
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="you@example.com"
+            autoComplete="email"
+            {...register("email")}
+          />
+          {errors.email && (
+            <p className="text-destructive text-xs">{errors.email.message}</p>
           )}
         </div>
 
