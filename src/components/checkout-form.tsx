@@ -32,6 +32,7 @@ export function CheckoutForm({
   const router = useRouter()
 
   const [midtransError, setMidtransError] = React.useState<string | null>(null)
+  const [whatsappError, setWhatsappError] = React.useState<string | null>(null)
 
   const {
     register,
@@ -65,8 +66,26 @@ export function CheckoutForm({
   }
 
   async function onWhatsAppSubmit(values: CheckoutFormValues) {
+    setWhatsappError(null)
     const { whatsappItems } = buildCartItems()
     const orderId = crypto.randomUUID()
+
+    const result = await createOrder({
+      id: orderId,
+      items: whatsappItems,
+      total,
+      source: "checkout",
+      customer_name: values.name,
+      customer_phone: values.phone,
+      customer_email: values.email || undefined,
+      customer_address: values.address || undefined,
+      notes: values.notes || undefined,
+    })
+
+    if (result && "error" in result) {
+      setWhatsappError(result.error)
+      return
+    }
 
     const url = buildCheckoutUrl({
       phone,
@@ -78,18 +97,6 @@ export function CheckoutForm({
       customerAddress: values.address || undefined,
       notes: values.notes || undefined,
     })
-
-    void createOrder({
-      id: orderId,
-      items: whatsappItems,
-      total,
-      source: "checkout",
-      customer_name: values.name,
-      customer_phone: values.phone,
-      customer_email: values.email || undefined,
-      customer_address: values.address || undefined,
-      notes: values.notes || undefined,
-    }).catch(() => {})
 
     clearCart()
     window.open(url, "_blank", "noopener,noreferrer")
@@ -116,7 +123,8 @@ export function CheckoutForm({
     })
 
     if (!res.ok) {
-      setMidtransError("Payment setup failed. Please try again.")
+      const body = await res.json().catch(() => ({})) as { error?: string }
+      setMidtransError(body.error ?? "Payment setup failed. Please try again.")
       return
     }
 
@@ -260,6 +268,10 @@ export function CheckoutForm({
         <MessageCircle className="size-4" aria-hidden />
         {isSubmitting ? "Opening WhatsApp…" : `Order via WhatsApp`}
       </Button>
+
+      {whatsappError && (
+        <p className="text-destructive text-center text-sm">{whatsappError}</p>
+      )}
 
       <p className="text-muted-foreground text-center text-xs">
         Pay online with card, GoPay, QRIS, or bank transfer — or chat first via WhatsApp.
