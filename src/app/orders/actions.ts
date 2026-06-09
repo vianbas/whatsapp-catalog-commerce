@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { orderInputSchema, type OrderInput } from "@/lib/validations/order"
-import { sendOrderNotification, sendOrderConfirmationToCustomer } from "@/lib/whatsapp-api"
+import { sendOrderNotification } from "@/lib/whatsapp-api"
 import { sendOrderConfirmationEmail } from "@/lib/email"
 
 /**
@@ -37,14 +37,13 @@ export async function createOrder(
   })
   if (error) return { error: error.message }
 
-  const { items, total, customer_phone, customer_email, customer_name } = parsed.data
+  const { items, total, customer_email, customer_name } = parsed.data
 
   // Fire-and-forget notifications — never block or fail the order record.
+  // WhatsApp checkout: notify store owner + send "order received" email to customer.
+  // Payment confirmation (WA + email) is handled by the Midtrans webhook on paid status.
   void sendOrderNotification(items, total, parsed.data.source).catch(() => {})
-  if (customer_phone) {
-    void sendOrderConfirmationToCustomer(customer_phone, orderId, items, total).catch(() => {})
-  }
   if (customer_email) {
-    void sendOrderConfirmationEmail(customer_email, orderId, items, total, customer_name).catch(() => {})
+    void sendOrderConfirmationEmail(customer_email, orderId, items, total, customer_name, "received").catch(() => {})
   }
 }

@@ -62,14 +62,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       payment_type: body.payment_type ?? null,
     })
     .eq("id", baseOrderId)
+    // Only update (and notify) if not already marked paid — prevents duplicate
+    // notifications on Midtrans webhook retries.
+    .neq("payment_status", "paid")
     .select("id, customer_phone, customer_email, customer_name, items, total, status")
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error("[Midtrans webhook] update error:", error)
   }
 
   // Send order confirmation on successful payment — fire and forget.
+  // `order` is null when the row was already paid (idempotent retry), so notifications
+  // only fire once.
   if (paymentStatus === "paid" && order) {
     if (order.customer_phone) {
       void sendOrderConfirmationToCustomer(

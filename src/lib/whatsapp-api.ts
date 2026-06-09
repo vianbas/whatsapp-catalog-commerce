@@ -13,6 +13,8 @@
  * notifications use an approved template — see Meta's template docs.
  */
 
+import { formatRupiah } from "@/lib/utils"
+
 const BASE = "https://graph.facebook.com/v19.0"
 
 function isConfigured(): boolean {
@@ -64,10 +66,6 @@ export interface OrderNotificationItem {
   price: number
 }
 
-function formatRp(amount: number): string {
-  return `Rp ${amount.toLocaleString("id-ID")}`
-}
-
 const STATUS_LABELS: Record<string, string> = {
   new: "Pesanan Anda telah kami terima",
   contacted: "Pesanan Anda sedang kami proses",
@@ -117,7 +115,7 @@ export async function sendOrderConfirmationToCustomer(
 
   const shortId = orderId.slice(0, 8).toUpperCase()
   const lines = items.map(
-    (i) => `• ${i.name} x${i.quantity} — ${formatRp(i.price * i.quantity)}`
+    (i) => `• ${i.name} x${i.quantity} — ${formatRupiah(i.price * i.quantity)}`
   )
 
   const body = [
@@ -125,7 +123,7 @@ export async function sendOrderConfirmationToCustomer(
     "",
     ...lines,
     "",
-    `*Total: ${formatRp(total)}*`,
+    `*Total: ${formatRupiah(total)}*`,
     "",
     "Kami akan segera memproses pesanan Anda. Terima kasih! 🙏",
   ].join("\n")
@@ -146,7 +144,7 @@ export async function sendOrderNotification(
 
   const to = process.env.WHATSAPP_API_NOTIFY_NUMBER!
   const lines = items.map(
-    (i) => `• ${i.name} x${i.quantity} — ${formatRp(i.price * i.quantity)}`
+    (i) => `• ${i.name} x${i.quantity} — ${formatRupiah(i.price * i.quantity)}`
   )
 
   const body = [
@@ -155,7 +153,7 @@ export async function sendOrderNotification(
     "",
     ...lines,
     "",
-    `*Total: ${formatRp(total)}*`,
+    `*Total: ${formatRupiah(total)}*`,
   ].join("\n")
 
   await sendTextMessage(to, body)
