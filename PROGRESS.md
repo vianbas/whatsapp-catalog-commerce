@@ -106,9 +106,37 @@ Domain `vikoabastian.com` verified in Resend. Sandbox sender `onboarding@resend.
 
 ---
 
-## Features — PENDING (not yet built)
+## Features — PENDING (scoped 2026-06-09)
 
-No known pending features. Add next ones here when scoped.
+Priority order agreed with team:
+
+### 1. "View Order" button in email (quick win)
+Add a CTA button linking to `/orders/[id]` in both confirmation email types.
+- Files: `src/lib/email.ts` — add button block above the footer
+- No DB change needed
+
+### 2. Shipping tracking number
+Admin inputs courier + tracking number on order detail; customer gets WA + email notification with tracking link.
+- New DB column: `orders.tracking_number TEXT`, `orders.courier TEXT`
+- Admin UI: `/admin/orders/[id]` — add tracking number input + save button
+- New notification: `sendTrackingNotification(phone, email, orderId, courier, trackingNumber)`
+- Customer-facing: show tracking info on `/orders/[id]` timeline
+
+### 3. Guest order lookup
+Customers who checkout as guests can't see their orders (login required). Add a `/track` page where they enter phone number or order ID to view order status without an account.
+- New page: `/track` — form + result display
+- New API: `/api/orders/track?phone=&orderId=` — anon-safe lookup (RLS: match by customer_phone OR id)
+
+### 4. WhatsApp message templates
+Current free-form WA messages only work within a 24-hr customer service window. Approved Meta templates work anytime.
+- Register templates in Meta Business Manager
+- Update `sendOrderConfirmationToCustomer` + `sendStatusNotification` to use template API
+- No UI change needed
+
+### 5. Invoice PDF
+Attach a PDF invoice to the confirmation email — useful for B2B customers.
+- Use `@react-pdf/renderer` or `pdfkit`
+- Generate on webhook / order creation, attach via Resend `attachments`
 
 ---
 
