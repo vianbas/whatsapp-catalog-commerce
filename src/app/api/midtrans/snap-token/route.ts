@@ -40,6 +40,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       customer_id: user?.id ?? null,
       customer_name: data.customer_name ?? null,
       customer_phone: data.customer_phone ?? null,
+      customer_email: data.customer_email || null,
       customer_address: data.customer_address ?? null,
       notes: data.notes ?? null,
       payment_status: "unpaid",

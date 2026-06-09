@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 
 import { createClient } from "@/lib/supabase/server"
 import { verifyWebhookSignature, mapPaymentStatus } from "@/lib/midtrans"
-import { sendStatusNotification } from "@/lib/whatsapp-api"
+import { sendOrderConfirmationToCustomer } from "@/lib/whatsapp-api"
+import { sendOrderConfirmationEmail } from "@/lib/email"
 
 interface MidtransNotification {
   order_id: string
@@ -61,16 +62,37 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       payment_type: body.payment_type ?? null,
     })
     .eq("id", baseOrderId)
-    .select("id, customer_phone, status")
-    .single()
+    // Only update (and notify) if not already marked paid — prevents duplicate
+    // notifications on Midtrans webhook retries.
+    .neq("payment_status", "paid")
+    .select("id, customer_phone, customer_email, customer_name, items, total, status")
+    .maybeSingle()
 
   if (error) {
     console.error("[Midtrans webhook] update error:", error)
   }
 
-  // Send WhatsApp notification on successful payment — fire and forget.
-  if (paymentStatus === "paid" && order?.customer_phone) {
-    void sendStatusNotification(order.customer_phone, order.id, order.status).catch(() => {})
+  // Send order confirmation on successful payment — fire and forget.
+  // `order` is null when the row was already paid (idempotent retry), so notifications
+  // only fire once.
+  if (paymentStatus === "paid" && order) {
+    if (order.customer_phone) {
+      void sendOrderConfirmationToCustomer(
+        order.customer_phone,
+        order.id,
+        order.items as { name: string; quantity: number; price: number }[],
+        order.total
+      ).catch(() => {})
+    }
+    if (order.customer_email) {
+      void sendOrderConfirmationEmail(
+        order.customer_email,
+        order.id,
+        order.items as { name: string; quantity: number; price: number }[],
+        order.total,
+        order.customer_name
+      ).catch(() => {})
+    }
   }
 
   return new NextResponse("OK", { status: 200 })
