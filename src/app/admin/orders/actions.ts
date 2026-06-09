@@ -5,7 +5,8 @@ import { redirect } from "next/navigation"
 
 import { createClient } from "@/lib/supabase/server"
 import type { OrderStatus } from "@/lib/types"
-import { sendStatusNotification } from "@/lib/whatsapp-api"
+import { sendStatusNotification, sendTrackingNotification } from "@/lib/whatsapp-api"
+import { sendTrackingEmail } from "@/lib/email"
 
 export type ActionResult = { error: string } | void
 
@@ -40,4 +41,32 @@ export async function updateOrderStatus(
   }
 
   revalidatePath("/admin/orders")
+}
+
+export async function updateTracking(
+  id: string,
+  courier: string,
+  trackingNumber: string
+): Promise<ActionResult> {
+  const c = courier.trim()
+  const t = trackingNumber.trim()
+  if (!c || !t) return { error: "Courier and tracking number are required" }
+
+  const supabase = await requireSupabase()
+  const { data, error } = await supabase
+    .from("orders")
+    .update({ courier: c, tracking_number: t })
+    .eq("id", id)
+    .select("customer_phone, customer_email, customer_name")
+    .single()
+  if (error) return { error: error.message }
+
+  if (data?.customer_phone) {
+    void sendTrackingNotification(data.customer_phone, id, c, t).catch(() => {})
+  }
+  if (data?.customer_email) {
+    void sendTrackingEmail(data.customer_email, id, c, t, data.customer_name).catch(() => {})
+  }
+
+  revalidatePath(`/admin/orders/${id}`)
 }

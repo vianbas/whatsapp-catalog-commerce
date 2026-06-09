@@ -226,6 +226,32 @@ export default async function CustomerOrderDetailPage({
           </>
         )}
 
+      {/* Shipping tracking */}
+      {(order.courier || order.tracking_number) && (
+        <>
+          <Separator className="mb-8" />
+          <div className="mb-8">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Shipping
+            </h2>
+            <dl className="space-y-1.5 text-sm">
+              {order.courier && (
+                <div className="flex gap-2">
+                  <dt className="text-muted-foreground w-20 shrink-0">Courier</dt>
+                  <dd>{order.courier}</dd>
+                </div>
+              )}
+              {order.tracking_number && (
+                <div className="flex gap-2">
+                  <dt className="text-muted-foreground w-20 shrink-0">Tracking</dt>
+                  <dd className="font-mono font-medium">{order.tracking_number}</dd>
+                </div>
+              )}
+            </dl>
+          </div>
+        </>
+      )}
+
       {/* Delivery details (if captured) */}
       {(order.customer_name || order.customer_phone || order.customer_address || order.notes) && (
         <>
