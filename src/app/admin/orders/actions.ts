@@ -57,7 +57,7 @@ export async function updateTracking(
     .from("orders")
     .update({ courier: c, tracking_number: t })
     .eq("id", id)
-    .select("customer_phone, customer_email, customer_name")
+    .select("customer_id, customer_phone, customer_email, customer_name")
     .single()
   if (error) return { error: error.message }
 
@@ -65,7 +65,8 @@ export async function updateTracking(
     void sendTrackingNotification(data.customer_phone, id, c, t).catch(() => {})
   }
   if (data?.customer_email) {
-    void sendTrackingEmail(data.customer_email, id, c, t, data.customer_name).catch(() => {})
+    const guestPhone = !data.customer_id ? data.customer_phone ?? null : null
+    void sendTrackingEmail(data.customer_email, id, c, t, data.customer_name, guestPhone).catch(() => {})
   }
 
   revalidatePath(`/admin/orders/${id}`)

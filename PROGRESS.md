@@ -61,13 +61,15 @@ Repo: https://github.com/vianbas/whatsapp-catalog-commerce
   - Midtrans paid → itemised WhatsApp confirmation + "Konfirmasi Pesanan" email (idempotent — webhook `.neq("payment_status","paid")` prevents duplicate sends on retries)
   - Email field on checkout is optional (UU PDP data minimisation)
   - HTML in emails is escaped to prevent injection from product names / customer names
+- **"View Order" button in emails** (PR #68) — CTA button linking to `/orders/[id]` in both email types
+- **Shipping tracking** (PR #69) — admin inputs courier + tracking number; customer notified via WA + email with tracking link; shown on `/orders/[id]` timeline
+- **Guest order lookup** (PR #70) — `/track` page: enter phone + order ID to view order status without login; backed by `track_order()` SECURITY DEFINER RPC (anon-safe)
+- **Invoice PDF** (PR #71) — PDF invoice generated with `pdf-lib` and attached to confirmation emails via Resend `attachments`
 - Stock decrement trigger on order insert (DB-level)
 
 ---
 
 ## DB Migrations — ALL DONE ✓
-
-All run in Supabase SQL editor:
 
 - `db/stock-decrement.sql` — trigger decrements stock on order insert
 - `db/discount-codes.sql` — discount_codes table + RLS + apply_discount_code() RPC
@@ -75,6 +77,8 @@ All run in Supabase SQL editor:
 - `db/product-reviews.sql` — product_reviews table + RLS
 - `db/midtrans-payment.sql` — adds payment_status, midtrans_order_id, snap_token, payment_type to orders
 - `db/customer-email.sql` — adds customer_email to orders (PR #63)
+- `db/shipping-tracking.sql` — adds courier, tracking_number to orders (PR #69, run 2026-06-09)
+- `db/track-order-rpc.sql` — creates track_order() SECURITY DEFINER RPC (PR #70, run 2026-06-09)
 
 ---
 
@@ -106,37 +110,10 @@ Domain `vikoabastian.com` verified in Resend. Sandbox sender `onboarding@resend.
 
 ---
 
-## Features — PENDING (scoped 2026-06-09)
+## Features — PENDING
 
-Priority order agreed with team:
-
-### 1. "View Order" button in email (quick win)
-Add a CTA button linking to `/orders/[id]` in both confirmation email types.
-- Files: `src/lib/email.ts` — add button block above the footer
-- No DB change needed
-
-### 2. Shipping tracking number
-Admin inputs courier + tracking number on order detail; customer gets WA + email notification with tracking link.
-- New DB column: `orders.tracking_number TEXT`, `orders.courier TEXT`
-- Admin UI: `/admin/orders/[id]` — add tracking number input + save button
-- New notification: `sendTrackingNotification(phone, email, orderId, courier, trackingNumber)`
-- Customer-facing: show tracking info on `/orders/[id]` timeline
-
-### 3. Guest order lookup
-Customers who checkout as guests can't see their orders (login required). Add a `/track` page where they enter phone number or order ID to view order status without an account.
-- New page: `/track` — form + result display
-- New API: `/api/orders/track?phone=&orderId=` — anon-safe lookup (RLS: match by customer_phone OR id)
-
-### 4. WhatsApp message templates
-Current free-form WA messages only work within a 24-hr customer service window. Approved Meta templates work anytime.
-- Register templates in Meta Business Manager
-- Update `sendOrderConfirmationToCustomer` + `sendStatusNotification` to use template API
-- No UI change needed
-
-### 5. Invoice PDF
-Attach a PDF invoice to the confirmation email — useful for B2B customers.
-- Use `@react-pdf/renderer` or `pdfkit`
-- Generate on webhook / order creation, attach via Resend `attachments`
+### WhatsApp message templates (skipped indefinitely)
+Current free-form WA messages only work within a 24-hr customer service window. Approved Meta templates work anytime but require Meta Business Manager external approval — skipped until approved.
 
 ---
 
@@ -163,9 +140,14 @@ Attach a PDF invoice to the confirmation email — useful for B2B customers.
 | WhatsApp message builder | `src/lib/whatsapp.ts` |
 | Meta Cloud API client | `src/lib/whatsapp-api.ts` |
 | Resend email client | `src/lib/email.ts` |
+| Invoice PDF generator | `src/lib/invoice.ts` |
 | Midtrans API client | `src/lib/midtrans.ts` |
 | Order create action | `src/app/orders/actions.ts` |
-| Admin order status action | `src/app/admin/orders/actions.ts` |
+| Admin order status + tracking actions | `src/app/admin/orders/actions.ts` |
+| Admin order detail (with tracking form) | `src/app/admin/orders/[id]/page.tsx` |
+| Customer order detail (with tracking section) | `src/app/orders/[id]/page.tsx` |
+| Tracking form component | `src/components/order-tracking-form.tsx` |
+| Guest order lookup page | `src/app/track/page.tsx` |
 | Cart store (localStorage) | `src/lib/cart.ts` |
 | Shared DB types | `src/lib/types.ts` |
 | Order validation schema | `src/lib/validations/order.ts` |

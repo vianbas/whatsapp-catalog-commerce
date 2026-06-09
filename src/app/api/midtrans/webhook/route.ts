@@ -65,7 +65,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Only update (and notify) if not already marked paid — prevents duplicate
     // notifications on Midtrans webhook retries.
     .neq("payment_status", "paid")
-    .select("id, customer_phone, customer_email, customer_name, items, total, status")
+    .select("id, customer_id, customer_phone, customer_email, customer_name, items, total, status")
     .maybeSingle()
 
   if (error) {
@@ -85,12 +85,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       ).catch(() => {})
     }
     if (order.customer_email) {
+      const guestPhone = !order.customer_id ? order.customer_phone ?? null : null
       void sendOrderConfirmationEmail(
         order.customer_email,
         order.id,
         order.items as { name: string; quantity: number; price: number }[],
         order.total,
-        order.customer_name
+        order.customer_name,
+        "paid",
+        guestPhone
       ).catch(() => {})
     }
   }
