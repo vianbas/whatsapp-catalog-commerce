@@ -37,7 +37,8 @@ export async function sendOrderConfirmationEmail(
   items: OrderEmailItem[],
   total: number,
   customerName?: string | null,
-  type: "received" | "paid" = "paid"
+  type: "received" | "paid" = "paid",
+  guestPhone?: string | null
 ): Promise<void> {
   if (!email || !process.env.RESEND_API_KEY || !process.env.RESEND_FROM) return
 
@@ -105,7 +106,7 @@ export async function sendOrderConfirmationEmail(
           <hr style="border:none;border-top:1px solid #f0f0f0;margin:24px 0">
 
           ${process.env.APP_URL ? `<div style="text-align:center;margin-bottom:24px">
-            <a href="${process.env.APP_URL}/orders/${orderId}"
+            <a href="${process.env.APP_URL}${guestPhone ? `/track?id=${orderId}` : `/orders/${orderId}`}"
                style="display:inline-block;background:#18181b;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 28px;border-radius:6px">
               Lihat Detail Pesanan →
             </a>
@@ -145,7 +146,8 @@ export async function sendTrackingEmail(
   orderId: string,
   courier: string,
   trackingNumber: string,
-  customerName?: string | null
+  customerName?: string | null,
+  guestPhone?: string | null
 ): Promise<void> {
   if (!email || !process.env.RESEND_API_KEY || !process.env.RESEND_FROM) return
 
@@ -153,7 +155,9 @@ export async function sendTrackingEmail(
   const shortId = orderId.slice(0, 8).toUpperCase()
   const safeName = customerName ? escapeHtml(customerName) : null
   const greeting = safeName ? `Halo ${safeName},` : "Halo,"
-  const orderUrl = process.env.APP_URL ? `${process.env.APP_URL}/orders/${orderId}` : null
+  const orderUrl = process.env.APP_URL
+    ? `${process.env.APP_URL}${guestPhone ? `/track?id=${orderId}` : `/orders/${orderId}`}`
+    : null
 
   const html = `<!DOCTYPE html>
 <html lang="id">

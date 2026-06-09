@@ -44,6 +44,7 @@ export async function createOrder(
   // Payment confirmation (WA + email) is handled by the Midtrans webhook on paid status.
   void sendOrderNotification(items, total, parsed.data.source).catch(() => {})
   if (customer_email) {
-    void sendOrderConfirmationEmail(customer_email, orderId, items, total, customer_name, "received").catch(() => {})
+    const guestPhone = !user?.id ? (parsed.data.customer_phone ?? null) : null
+    void sendOrderConfirmationEmail(customer_email, orderId, items, total, customer_name, "received", guestPhone).catch(() => {})
   }
 }
