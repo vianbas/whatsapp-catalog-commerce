@@ -48,7 +48,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   if (insertError) {
     console.error("[Midtrans] order insert error:", insertError)
-    return NextResponse.json({ error: "Failed to create order" }, { status: 500 })
+    const message = insertError.message?.includes("Stok tidak cukup")
+      ? insertError.message
+      : "Failed to create order"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 
   const origin = request.headers.get("origin") ?? request.nextUrl.origin

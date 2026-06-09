@@ -112,6 +112,14 @@ Domain `vikoabastian.com` verified in Resend. Sandbox sender `onboarding@resend.
 
 ---
 
+## Open PRs — awaiting merge
+
+| PR | Feature | Branch | DB migration? |
+|---|---|---|---|
+| #77 | Fix stock reservation — atomic check-and-decrement | `feature/stock-reservation` | Yes — `db/stock-reservation.sql` |
+
+---
+
 ## Features — PENDING
 
 ### WhatsApp message templates (skipped indefinitely)
