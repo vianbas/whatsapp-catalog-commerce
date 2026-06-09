@@ -65,11 +65,11 @@ export function PaymentRetryButton({ orderId }: { orderId: string }) {
     window.snap?.pay(snapToken, {
       onSuccess: () => {
         setSuccess(true)
-        // Delay refresh so the webhook has time to update payment_status in the DB.
-        setTimeout(() => router.refresh(), 4000)
+        // Reload with ?processing=1 so the page polls until payment_status updates.
+        setTimeout(() => router.push(`/orders/${orderId}?processing=1`), 500)
       },
       onPending: () => {
-        setTimeout(() => router.refresh(), 4000)
+        setTimeout(() => router.push(`/orders/${orderId}?processing=1`), 500)
       },
       onError: () => setError("Payment failed. Please try again."),
       onClose: () => setError("Payment cancelled."),

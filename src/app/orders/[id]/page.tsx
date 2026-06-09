@@ -6,6 +6,7 @@ import { CheckCircle2, Circle, XCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { PaymentRetryButton } from "@/components/payment-retry-button"
+import { PaymentProcessingPoller } from "@/components/payment-processing-poller"
 import { createClient } from "@/lib/supabase/server"
 import { formatRupiah } from "@/lib/utils"
 import type { Order, OrderStatus } from "@/lib/types"
@@ -54,10 +55,12 @@ function getStepStatus(
 
 export default async function CustomerOrderDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ processing?: string }>
 }) {
-  const { id } = await params
+  const [{ id }, { processing }] = await Promise.all([params, searchParams])
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
@@ -77,8 +80,13 @@ export default async function CustomerOrderDetailPage({
     ? [STATUS_STEPS[0], CANCELLED_STEP]
     : STATUS_STEPS
 
+  const isProcessing = processing === "1" && order.source === "midtrans"
+
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-10">
+      {isProcessing && (
+        <PaymentProcessingPoller paymentStatus={order.payment_status} />
+      )}
       <div className="mb-8 flex items-center justify-between">
         <div>
           <Link href="/orders" className="text-muted-foreground mb-1 block text-sm hover:underline">
