@@ -45,8 +45,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const paymentStatus = mapPaymentStatus(body.transaction_status, body.fraud_status)
 
-  // Retry transactions use "{orderId}-r{timestamp}" as Midtrans order_id.
-  // Strip the suffix so we can look up by the original midtrans_order_id.
+  // Both first-payment and retry order_ids encode the base UUID:
+  //   first payment : "{uuid}"
+  //   retry         : "{uuid}-r{timestamp}"
+  // Strip the "-r…" suffix to get the UUID, then look up by orders.id.
   const baseOrderId = body.order_id.includes("-r")
     ? body.order_id.substring(0, body.order_id.lastIndexOf("-r"))
     : body.order_id
@@ -58,7 +60,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       payment_status: paymentStatus,
       payment_type: body.payment_type ?? null,
     })
-    .eq("midtrans_order_id", baseOrderId)
+    .eq("id", baseOrderId)
     .select("id, customer_phone, status")
     .single()
 

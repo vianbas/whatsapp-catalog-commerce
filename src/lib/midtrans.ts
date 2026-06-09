@@ -1,5 +1,6 @@
 const IS_PRODUCTION = process.env.MIDTRANS_IS_PRODUCTION === "true";
 const SNAP_BASE_URL = IS_PRODUCTION ? "https://app.midtrans.com/snap/v1" : "https://app.sandbox.midtrans.com/snap/v1";
+const API_BASE_URL = IS_PRODUCTION ? "https://api.midtrans.com/v2" : "https://api.sandbox.midtrans.com/v2";
 
 export interface CreateSnapTokenParams {
   orderId: string;
@@ -63,6 +64,27 @@ export async function verifyWebhookSignature(body: WebhookBody): Promise<boolean
   const buf = await crypto.subtle.digest("SHA-512", new TextEncoder().encode(raw));
   const hex = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
   return hex === body.signature_key;
+}
+
+export interface TransactionStatusResult {
+  transaction_status: string;
+  fraud_status?: string;
+  payment_type?: string;
+}
+
+export async function queryTransactionStatus(midtransOrderId: string): Promise<TransactionStatusResult | null> {
+  const serverKey = process.env.MIDTRANS_SERVER_KEY;
+  if (!serverKey) return null;
+
+  const res = await fetch(`${API_BASE_URL}/${encodeURIComponent(midtransOrderId)}/status`, {
+    headers: {
+      Accept: "application/json",
+      Authorization: "Basic " + btoa(`${serverKey}:`),
+    },
+  });
+
+  if (!res.ok) return null;
+  return res.json() as Promise<TransactionStatusResult>;
 }
 
 export function mapPaymentStatus(transactionStatus: string, fraudStatus?: string): "paid" | "pending" | "failed" {

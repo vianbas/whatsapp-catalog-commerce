@@ -29,9 +29,10 @@ Repo: https://github.com/vianbas/whatsapp-catalog-commerce
 | Product detail | `/products/[slug]` | Gallery, stock badge, JSON-LD, related products, star reviews |
 | Cart | `/cart` | localStorage, qty controls, promo codes, proceed-to-checkout |
 | Checkout form | `/checkout` | Pay Online (Midtrans Snap) as primary; WhatsApp as fallback |
-| Midtrans payment | `/api/midtrans/snap-token`, `/api/midtrans/webhook` | Snap popup; webhook updates payment_status |
+| Midtrans payment | `/api/midtrans/snap-token`, `/api/midtrans/webhook`, `/api/midtrans/retry-token` | Snap popup; webhook updates payment_status; retry for unpaid/failed orders |
 | Customer orders | `/orders` | Past orders list (login required) |
-| Order detail + timeline | `/orders/[id]` | Status timeline + delivery details |
+| Order detail + timeline | `/orders/[id]` | Status timeline, delivery details, payment badge + retry button; `?processing=1` auto-polls until payment confirmed |
+| Payment status badge | `/orders` | Per-row "Paid / Pending / Unpaid / Failed" badge for Midtrans orders |
 
 ### Admin panel
 
@@ -39,7 +40,7 @@ Repo: https://github.com/vianbas/whatsapp-catalog-commerce
 |---|---|
 | Dashboard (revenue + status breakdown) | `/admin` |
 | Orders list (filter by status) | `/admin/orders` |
-| Order detail + customer info | `/admin/orders/[id]` |
+| Order detail + customer info + payment status | `/admin/orders/[id]` | Shows "Payment: paid · qris" line for Midtrans orders |
 | Products (create, edit, images, stock, featured) | `/admin/products` |
 | Low-stock alert banner (stock ≤ 5) | `/admin/products`, `/admin/products/[id]/edit` |
 | CSV bulk product import | `/admin/products/import` |
@@ -90,24 +91,18 @@ Webhook URL registered in Midtrans dashboard:
 
 ## Features — PENDING (not yet built)
 
-### 9. Payment status on order detail page
+No known pending features. Add next ones here when scoped.
 
-After a Midtrans payment, the `payment_status` column is updated by the webhook but
-`/orders/[id]` doesn't display it. Customer has no way to see if their payment was received.
+---
 
-Key files:
-- `src/app/orders/[id]/page.tsx` — add payment status badge
-- `src/app/admin/orders/[id]/page.tsx` — add payment status for admin view
+## Known Gotchas & Patterns
 
-### 10. Payment retry from order page
-
-If a customer closes the Snap popup (cancel) or payment fails, the order exists with
-`payment_status: 'unpaid'` but there is no way to retry payment from `/orders/[id]`.
-
-Flow needed:
-- `/orders/[id]` shows a "Complete payment" button when `payment_status` is `unpaid` or `failed`
-- Button calls `/api/midtrans/snap-token` with the existing order ID (or creates a new snap token for the same order)
-- Opens Snap popup; on success/pending redirects back to `/orders/[id]`
+- **Midtrans order_id max 50 chars** — UUID (36) + `-r` (2) + timestamp slice (10) = 48. Never use full `Date.now()` (13 digits → 51 chars → Midtrans rejects)
+- **Anon RLS on INSERT** — never `.insert().select()` for anon users; generate UUID server-side, insert with explicit `id`, no `.select()`
+- **NEXT_PUBLIC_* in Cloudflare Builds** — must be hardcoded in `next.config.ts` env block; `process.env.X` inside that block always evaluates to `""` at build time
+- **Payment status race condition** — `onSuccess` fires before webhook lands; navigate to `/orders/[id]?processing=1` so the page polls every 3s until DB is updated
+- **Snap.js already loaded** — when `window.snap` exists in useEffect, use `setTimeout(() => setState(true), 0)` to avoid setState-in-render lint error
+- **Webhook retry order_id stripping** — use `order_id.lastIndexOf("-r")` to find the base UUID; `-r` is safe separator because UUIDs are hex-only
 
 ---
 

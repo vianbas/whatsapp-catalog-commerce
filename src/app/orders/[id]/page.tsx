@@ -85,7 +85,7 @@ export default async function CustomerOrderDetailPage({
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-10">
       {isProcessing && (
-        <PaymentProcessingPoller paymentStatus={order.payment_status} />
+        <PaymentProcessingPoller orderId={order.id} paymentStatus={order.payment_status} />
       )}
       <div className="mb-8 flex items-center justify-between">
         <div>
