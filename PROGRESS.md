@@ -56,6 +56,11 @@ Repo: https://github.com/vianbas/whatsapp-catalog-commerce
 - SEO: sitemap.xml, robots.txt, JSON-LD Product structured data, Open Graph
 - Meta WhatsApp Cloud API webhook at `/api/webhook/whatsapp`
 - WhatsApp status notification to customer on admin order status change (fire-and-forget)
+- **Order notifications to customer** (PR #63):
+  - WhatsApp checkout → "Pesanan Diterima" email sent at order creation (if email provided)
+  - Midtrans paid → itemised WhatsApp confirmation + "Konfirmasi Pesanan" email (idempotent — webhook `.neq("payment_status","paid")` prevents duplicate sends on retries)
+  - Email field on checkout is optional (UU PDP data minimisation)
+  - HTML in emails is escaped to prevent injection from product names / customer names
 - Stock decrement trigger on order insert (DB-level)
 
 ---
@@ -69,6 +74,7 @@ All run in Supabase SQL editor:
 - `db/checkout-customer-info.sql` — adds customer_name, customer_phone, customer_address, notes to orders
 - `db/product-reviews.sql` — product_reviews table + RLS
 - `db/midtrans-payment.sql` — adds payment_status, midtrans_order_id, snap_token, payment_type to orders
+- `db/customer-email.sql` — adds customer_email to orders (PR #63)
 
 ---
 
@@ -89,6 +95,17 @@ Webhook URL registered in Midtrans dashboard:
 
 ---
 
+## Resend env vars (email notifications)
+
+| Var | Where | Value |
+|---|---|---|
+| `RESEND_API_KEY` | Wrangler secret (`wrangler secret put`) | from resend.com dashboard |
+| `RESEND_FROM` | `wrangler.jsonc` vars | `orders@vikoabastian.com` |
+
+Domain `vikoabastian.com` verified in Resend. Sandbox sender `onboarding@resend.dev` can be used for local testing (delivers only to the Resend account email).
+
+---
+
 ## Features — PENDING (not yet built)
 
 No known pending features. Add next ones here when scoped.
@@ -105,6 +122,9 @@ No known pending features. Add next ones here when scoped.
 - **Webhook lookup by `id` not `midtrans_order_id`** — retry-token updates `midtrans_order_id` to the retry ID, so webhook must look up by `orders.id` (base UUID always matches)
 - **Snap.js already loaded** — when `window.snap` exists in useEffect, use `setTimeout(() => setState(true), 0)` to avoid setState-in-render lint error
 - **Webhook retry order_id stripping** — use `order_id.lastIndexOf("-r")` to find the base UUID; `-r` is safe separator because UUIDs are hex-only
+- **Webhook notification idempotency** — `.neq("payment_status","paid")` on the Midtrans webhook UPDATE means retries return null order and skip notifications; prevents duplicate WA/email on Midtrans retries
+- **Email HTML escaping** — always use `escapeHtml()` from `src/lib/email.ts` before interpolating user-supplied values (customerName, item names) into HTML strings
+- **Currency formatting** — use `formatRupiah` from `src/lib/utils.ts` everywhere; do not create local `formatRp` copies (they produce inconsistent output)
 
 ---
 
@@ -114,6 +134,7 @@ No known pending features. Add next ones here when scoped.
 |---|---|
 | WhatsApp message builder | `src/lib/whatsapp.ts` |
 | Meta Cloud API client | `src/lib/whatsapp-api.ts` |
+| Resend email client | `src/lib/email.ts` |
 | Midtrans API client | `src/lib/midtrans.ts` |
 | Order create action | `src/app/orders/actions.ts` |
 | Admin order status action | `src/app/admin/orders/actions.ts` |
