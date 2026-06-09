@@ -65,6 +65,7 @@ Repo: https://github.com/vianbas/whatsapp-catalog-commerce
 - **Shipping tracking** (PR #69) — admin inputs courier + tracking number; customer notified via WA + email with tracking link; shown on `/orders/[id]` timeline
 - **Guest order lookup** (PR #70) — `/track` page: enter phone + order ID to view order status without login; backed by `track_order()` SECURITY DEFINER RPC (anon-safe)
 - **Invoice PDF** (PR #71) — PDF invoice generated with `pdf-lib` and attached to confirmation emails via Resend `attachments`
+- **Guest email link fix** (PR #73) — confirmation/tracking emails for guest orders link to `/track?id=...` instead of login-gated `/orders/[id]`
 - Stock decrement trigger on order insert (DB-level)
 
 ---
@@ -107,6 +108,14 @@ Webhook URL registered in Midtrans dashboard:
 | `RESEND_FROM` | `wrangler.jsonc` vars | `orders@vikoabastian.com` |
 
 Domain `vikoabastian.com` verified in Resend. Sandbox sender `onboarding@resend.dev` can be used for local testing (delivers only to the Resend account email).
+
+---
+
+## Open PRs — awaiting merge
+
+| PR | Feature | Branch | DB migration? |
+|---|---|---|---|
+| #75 | Fix guest checkout redirect → `/track` instead of `/orders` | `feature/guest-checkout-redirect` | No |
 
 ---
 
