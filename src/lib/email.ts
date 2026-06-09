@@ -4,6 +4,7 @@
  * Required env vars:
  *   RESEND_API_KEY  — API key from resend.com
  *   RESEND_FROM     — verified sender address, e.g. "Toko <orders@yourdomain.com>"
+ *   APP_URL         — public base URL, e.g. "https://w-commerce.vikoabastian.com"
  */
 
 import { Resend } from "resend"
@@ -101,6 +102,13 @@ export async function sendOrderConfirmationEmail(
           </table>
 
           <hr style="border:none;border-top:1px solid #f0f0f0;margin:24px 0">
+
+          ${process.env.APP_URL ? `<div style="text-align:center;margin-bottom:24px">
+            <a href="${process.env.APP_URL}/orders/${orderId}"
+               style="display:inline-block;background:#18181b;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 28px;border-radius:6px">
+              Lihat Detail Pesanan →
+            </a>
+          </div>` : ""}
 
           <p style="margin:0;font-size:13px;color:#71717a">
             Pertanyaan? Balas email ini atau hubungi kami via WhatsApp.
