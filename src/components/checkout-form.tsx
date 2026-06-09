@@ -22,9 +22,11 @@ import { checkoutFormSchema, type CheckoutFormValues } from "@/lib/validations/o
 export function CheckoutForm({
   phone,
   greeting,
+  isLoggedIn = false,
 }: {
   phone: string
   greeting?: string
+  isLoggedIn?: boolean
 }) {
   const { items, count, total } = useCart()
   const router = useRouter()
@@ -64,6 +66,7 @@ export function CheckoutForm({
 
   async function onWhatsAppSubmit(values: CheckoutFormValues) {
     const { whatsappItems } = buildCartItems()
+    const orderId = crypto.randomUUID()
 
     const url = buildCheckoutUrl({
       phone,
@@ -77,6 +80,7 @@ export function CheckoutForm({
     })
 
     void createOrder({
+      id: orderId,
       items: whatsappItems,
       total,
       source: "checkout",
@@ -89,7 +93,7 @@ export function CheckoutForm({
 
     clearCart()
     window.open(url, "_blank", "noopener,noreferrer")
-    router.push("/orders")
+    router.push(isLoggedIn ? "/orders" : `/track?id=${orderId}`)
   }
 
   async function onMidtransSubmit(values: CheckoutFormValues) {
@@ -124,12 +128,11 @@ export function CheckoutForm({
     window.snap?.pay(snapToken, {
       onSuccess: () => {
         clearCart()
-        // ?processing=1 tells the order page to poll until payment_status updates.
-        router.push(`/orders/${orderId}?processing=1`)
+        router.push(isLoggedIn ? `/orders/${orderId}?processing=1` : `/track?id=${orderId}`)
       },
       onPending: () => {
         clearCart()
-        router.push(`/orders/${orderId}?processing=1`)
+        router.push(isLoggedIn ? `/orders/${orderId}?processing=1` : `/track?id=${orderId}`)
       },
       onError: () => {
         setMidtransError("Payment failed. Please try again.")

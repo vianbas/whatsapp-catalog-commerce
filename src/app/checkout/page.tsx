@@ -26,6 +26,8 @@ async function getStoreContact(): Promise<{ phone: string; greeting?: string }> 
 }
 
 export default async function CheckoutPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
   const { phone, greeting } = await getStoreContact()
 
   return (
@@ -40,7 +42,7 @@ export default async function CheckoutPage() {
         </div>
       </div>
 
-      <CheckoutForm phone={phone} greeting={greeting} />
+      <CheckoutForm phone={phone} greeting={greeting} isLoggedIn={!!user} />
     </main>
   )
 }
