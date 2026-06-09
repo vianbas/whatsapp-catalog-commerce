@@ -8,6 +8,7 @@
 
 import { Resend } from "resend"
 import { formatRupiah } from "@/lib/utils"
+import { generateInvoicePdf } from "@/lib/invoice"
 
 function escapeHtml(str: string): string {
   return str
@@ -118,10 +119,15 @@ export async function sendOrderConfirmationEmail(
 </body>
 </html>`
 
+  const pdfBytes = await generateInvoicePdf(orderId, items, total, customerName).catch(() => null)
+
   await resend.emails.send({
     from: process.env.RESEND_FROM,
     to: email,
     subject,
     html,
+    attachments: pdfBytes
+      ? [{ filename: `invoice-${shortId}.pdf`, content: Buffer.from(pdfBytes) }]
+      : [],
   })
 }
