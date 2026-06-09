@@ -43,10 +43,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Payment already processed" }, { status: 409 })
   }
 
-  // Midtrans requires unique order_id per transaction — append timestamp suffix.
-  // The webhook strips the "-r<ts>" suffix to look up by midtrans_order_id.
-  // UUIDs are hex-only so "-r" is unambiguous as a separator.
-  const retryMidtransId = `${orderId}-r${Date.now()}`
+  // Midtrans order_id max = 50 chars. UUID = 36, "-r" = 2, so timestamp <= 12 digits.
+  // Use last 10 digits of Date.now() (cycles every ~115 days, unique enough for retries).
+  const retryMidtransId = `${orderId}-r${Date.now().toString().slice(-10)}`
   const origin = request.headers.get("origin") ?? request.nextUrl.origin
 
   let snapToken: string
