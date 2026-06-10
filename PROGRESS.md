@@ -132,6 +132,8 @@ Candidate improvements, roughly in priority order. None started yet.
 
 ## Known Gotchas & Patterns
 
+- **Local dev on macOS < 13.5** — `initOpenNextCloudflareForDev()` (in `next.config.ts`) throws `Unhandled Rejection: Unsupported macOS version` because the Cloudflare `workerd` runtime needs macOS 13.5+. This is **non-fatal**: `next dev` still serves every Supabase-backed page (they talk to Supabase over HTTP). Only Cloudflare **bindings** (KV/R2 via `getCloudflareContext()`) are unavailable locally on such machines. To exercise binding-dependent paths, use `npm run preview` / `npm run deploy` (runs on Workers/Linux) or a DevContainer. Don't chase this error during local dev — it's expected on old macOS.
+- **postcss pinned via `overrides`** — Next vendors `postcss@8.4.31`, which is flagged by GHSA-qx2v-qp2m-jg93 (XSS). `package.json` → `overrides.postcss: "^8.5.15"` forces every copy (Next, Tailwind, shadcn) onto the patched release; `npm audit` is clean as a result. Keep this until Next bumps its own pin past 8.5.10 — re-check with `npm audit` + `npm ls postcss`, then the override can be dropped.
 - **Midtrans order_id max 50 chars** — UUID (36) + `-r` (2) + timestamp slice (10) = 48. Never use full `Date.now()` (13 digits → 51 chars → Midtrans rejects)
 - **Anon RLS on INSERT** — never `.insert().select()` for anon users; generate UUID server-side, insert with explicit `id`, no `.select()`
 - **NEXT_PUBLIC_* in Cloudflare Builds** — must be hardcoded in `next.config.ts` env block; `process.env.X` inside that block always evaluates to `""` at build time
@@ -146,6 +148,23 @@ Candidate improvements, roughly in priority order. None started yet.
 - **Stock reservation** — the `decrement_stock_on_order` trigger raises `Stok tidak cukup untuk produk: <name>` when stock is insufficient, which rolls back the order INSERT. Callers must surface this: WhatsApp checkout `createOrder` must be awaited (not fire-and-forget) and snap-token route forwards the message. `NULL` stock_quantity = unlimited and is skipped.
 - **orders is RLS admin-only for UPDATE** — `orders_admin_write` is the only UPDATE policy; `anon` (webhook) and non-admin customers (check-status poller) CANNOT update orders directly. Any payment/order mutation from those paths MUST go through a SECURITY DEFINER RPC (e.g. `settle_payment`). A direct `.update()` silently affects 0 rows. This masked itself in testing because the developer's admin session satisfied the policy.
 - **Payment settlement** — always call `settle_payment(order_id, status, payment_type)` rather than updating `payment_status` directly. It bypasses RLS, reconciles reserved stock, and returns `notified=true` only on the single transition into paid so confirmations fire exactly once across webhook + poller.
+
+---
+
+## Dependency Maintenance
+
+Upgrade policy: bump for **security / performance / memory** reasons; hold majors unless one of those forces it. Re-run `npm audit` + `npm outdated` before each release.
+
+**Last upgrade — 2026-06-10 (security + perf):**
+- `next` 16.2.6 → **16.2.9**, `eslint-config-next` → 16.2.9
+- `react` / `react-dom` 19.2.4 → **19.2.7**
+- `@supabase/ssr` 0.10.3 → **0.12.0** · `@supabase/supabase-js` 2.106.2 → **2.108.1**
+- `radix-ui` 1.4.3 → **1.5.0** · `react-hook-form` 7.77.0 → **7.78.0** · `wrangler` 4.98.0 → **4.99.0**
+- `@types/react` → 19.2.17 · `@types/node` → 20.19.42 (kept on **20** to match the Node/Workers runtime)
+- Added `overrides.postcss: ^8.5.15` (see Gotchas) → resolved the only advisory; `npm audit` = 0 vulnerabilities.
+- Verified: lint clean, build green (33 routes), runtime smoke test green (home/catalog/product/cart/login all 200, admin gate redirects correctly). Cloudflare-binding paths not exercisable locally (macOS < 13.5 — see Gotchas).
+
+**Held back intentionally (breaking, not security/perf-driven):** `eslint` 9→10, `typescript` 5→6, `@types/node` 20→25. Revisit only when a concrete need arises; do them one-at-a-time on their own branch with a full smoke test.
 
 ---
 
