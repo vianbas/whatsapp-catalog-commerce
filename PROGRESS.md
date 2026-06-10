@@ -67,6 +67,7 @@ Repo: https://github.com/vianbas/whatsapp-catalog-commerce
 - **Invoice PDF** (PR #71) — PDF invoice generated with `pdf-lib` and attached to confirmation emails via Resend `attachments`
 - **Guest email link fix** (PR #73) — confirmation/tracking emails for guest orders link to `/track?id=...` instead of login-gated `/orders/[id]`
 - **Guest checkout redirect fix** (PR #75) — after WhatsApp/Midtrans checkout, guests are redirected to `/track?id=...` instead of login-gated `/orders`
+- **Order-confirmed page** (#4) — `/order-confirmed?id=&phone=` shows a success screen with order summary + payment badge immediately after checkout; replaces the cold `/track` blank-form redirect for guests; `TrackPaymentPoller` reused so Midtrans orders still poll until paid
 - **Stock reservation** (PR #77) — atomic check-and-decrement trigger on order insert; concurrent orders for the last unit can't oversell (one wins the row lock, the other's INSERT rolls back with a stock error surfaced to the customer)
 - **Stock release on failed payment** (PR #79) — Midtrans orders reserve stock at creation; `settle_payment()` RPC releases it on failed/expired and re-reserves on retry-paid. Also fixed a latent RLS bug: payment settlement now runs via SECURITY DEFINER (webhook is `anon`, check-status is non-admin — both were RLS-blocked from updating orders before)
 
@@ -121,8 +122,8 @@ Candidate improvements, roughly in priority order.
 
 1. **Sandbox end-to-end test of expiry** — ✅ *code path verified 2026-06-10* (static): `expire`/`cancel`/`failure` → `mapPaymentStatus` returns `"failed"` → `settle_payment` releases reserved stock once (idempotent via `stock_released`). The remaining piece is a **live** sandbox run, which is a manual step (see "Manual: verify Midtrans expiry live" in Known Gotchas) — it can't be automated locally (sandbox expiry is 24h, signing a simulated webhook needs the sandbox server key, and any live order pollutes prod + decrements real stock).
 2. **`/track` payment-status polling** — ✅ *done 2026-06-10*. `/track` now shows a payment badge for Midtrans orders and, while `unpaid`, a "menunggu konfirmasi" banner that `router.refresh()`es every 4s so the webhook's DB update surfaces automatically (`src/components/track-payment-poller.tsx`). DB-driven, not active-inquiry — the logged-in `check-status` endpoint is auth-only; a guest active-inquiry version would need `track_order` extended to return `midtrans_order_id` (a migration, deferred).
-3. **Admin order search** — `/admin/orders` filters by status only; add search by customer name / phone / order ID.
-4. **Dedicated order-confirmed page** — instead of dropping guests on a cold `/track`, a `/order-confirmed?id=` page summarising the order.
+3. **Admin order search** — ✅ *done 2026-06-10*. `/admin/orders` has a search box (name / phone / order ID — short 8-char or full UUID, dash/case-insensitive) alongside the status filter. Filtered in-memory over the already-loaded set; preserves the status filter. Move to a DB-side search (trigram/RPC) if order volume grows.
+4. **Dedicated order-confirmed page** — ✅ *done 2026-06-10*. `/order-confirmed?id=&phone=` shows a success header, order ID, items + total, payment badge (Midtrans), status badge, and reuses `TrackPaymentPoller` for live polling while unpaid. Both WhatsApp and Midtrans (onSuccess/onPending) guest checkouts now redirect here instead of the blank `/track` form. The "Lacak Pesanan" button links to `/track?id=&phone=` pre-filled so the order loads immediately.
 5. **Audit other anon/non-admin write paths** — the RLS-blocked `orders` UPDATE (fixed for payments in #79) suggests checking whether any other customer-facing mutation silently no-ops under RLS.
 
 ### Skipped indefinitely
@@ -185,6 +186,7 @@ Upgrade policy: bump for **security / performance / memory** reasons; hold major
 | Customer order detail (with tracking section) | `src/app/orders/[id]/page.tsx` |
 | Tracking form component | `src/components/order-tracking-form.tsx` |
 | Guest order lookup page | `src/app/track/page.tsx` |
+| Guest post-checkout confirmation page | `src/app/order-confirmed/page.tsx` |
 | Cart store (localStorage) | `src/lib/cart.ts` |
 | Shared DB types | `src/lib/types.ts` |
 | Order validation schema | `src/lib/validations/order.ts` |
