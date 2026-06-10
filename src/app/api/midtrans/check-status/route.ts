@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 
 import { createClient } from "@/lib/supabase/server"
 import { queryTransactionStatus, mapPaymentStatus } from "@/lib/midtrans"
+import { notifyOrderConfirmed, type SettledOrder } from "@/lib/order-notifications"
 import type { Order } from "@/lib/types"
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -46,14 +47,24 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const newStatus = mapPaymentStatus(txn.transaction_status, txn.fraud_status)
 
-  // order.payment_status is "unpaid" here (checked above); always write the Midtrans result.
-  await supabase
-    .from("orders")
-    .update({
-      payment_status: newStatus,
-      payment_type: txn.payment_type ?? null,
-    })
-    .eq("id", orderId)
+  // Route through settle_payment (SECURITY DEFINER) so the write isn't blocked by
+  // RLS and reserved stock is reconciled (released on failed / re-reserved on paid).
+  // If this poller wins the race to mark the order paid, it also fires the
+  // confirmation — settle_payment's `notified` flag keeps it to exactly once.
+  const { data, error } = await supabase.rpc("settle_payment", {
+    p_order_id: orderId,
+    p_status: newStatus,
+    p_payment_type: txn.payment_type ?? null,
+  })
+
+  if (error) {
+    console.error("[Midtrans check-status] settle_payment error:", error)
+  }
+
+  const settled = (data as (SettledOrder & { notified: boolean })[] | null)?.[0]
+  if (settled?.notified) {
+    notifyOrderConfirmed(settled)
+  }
 
   return NextResponse.json({ payment_status: newStatus })
 }

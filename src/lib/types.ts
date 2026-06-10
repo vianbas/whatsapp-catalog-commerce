@@ -122,5 +122,6 @@ export interface Order {
   customer_email: string | null;
   courier: string | null;
   tracking_number: string | null;
+  stock_released: boolean;
   created_at: string;
 }
