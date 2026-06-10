@@ -70,15 +70,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Payment gateway error" }, { status: 502 })
   }
 
-  // UPDATE silently no-ops for non-admin authenticated users (orders_admin_write policy).
-  // Safe for this store: all customers are anon guests; admins satisfy the policy.
-  // If customer accounts are ever added, move this to a SECURITY DEFINER RPC so
-  // midtrans_order_id is stored reliably (check-status poller needs it to query Midtrans
-  // directly; without it, payment still settles via webhook, just with a few-second delay).
-  await supabase
-    .from("orders")
-    .update({ snap_token: snapToken, midtrans_order_id: orderId })
-    .eq("id", orderId)
+  await supabase.rpc("store_snap_ids", {
+    p_order_id: orderId,
+    p_snap_token: snapToken,
+    p_midtrans_order_id: orderId,
+  })
 
   return NextResponse.json({ snapToken, orderId })
 }
