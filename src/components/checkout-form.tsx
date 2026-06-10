@@ -100,7 +100,11 @@ export function CheckoutForm({
 
     clearCart()
     window.open(url, "_blank", "noopener,noreferrer")
-    router.push(isLoggedIn ? "/orders" : `/track?id=${orderId}`)
+    router.push(
+      isLoggedIn
+        ? "/orders"
+        : `/order-confirmed?id=${orderId}&phone=${encodeURIComponent(values.phone)}`
+    )
   }
 
   async function onMidtransSubmit(values: CheckoutFormValues) {
@@ -136,11 +140,19 @@ export function CheckoutForm({
     window.snap?.pay(snapToken, {
       onSuccess: () => {
         clearCart()
-        router.push(isLoggedIn ? `/orders/${orderId}?processing=1` : `/track?id=${orderId}`)
+        router.push(
+          isLoggedIn
+            ? `/orders/${orderId}?processing=1`
+            : `/order-confirmed?id=${orderId}&phone=${encodeURIComponent(values.phone)}`
+        )
       },
       onPending: () => {
         clearCart()
-        router.push(isLoggedIn ? `/orders/${orderId}?processing=1` : `/track?id=${orderId}`)
+        router.push(
+          isLoggedIn
+            ? `/orders/${orderId}?processing=1`
+            : `/order-confirmed?id=${orderId}&phone=${encodeURIComponent(values.phone)}`
+        )
       },
       onError: () => {
         setMidtransError("Payment failed. Please try again.")
