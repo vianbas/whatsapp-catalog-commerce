@@ -1,192 +1,237 @@
 # WhatsApp Catalog Commerce
 
-A lightweight product-catalog storefront where customers browse products and
-**check out by sending a pre-filled order to the store's WhatsApp** — no payment
-gateway, no customer accounts, no cart server. Built for small sellers in
-markets (e.g. Indonesia) where WhatsApp *is* the sales channel.
+A mobile-first product-catalog storefront for Indonesian small sellers. Customers browse products and check out via **Midtrans Snap** (card, GoPay, QRIS, bank transfer) or by sending a pre-filled order to the store's **WhatsApp**. A protected admin panel handles catalog management, order tracking, and shipping.
+
+Live: **https://w-commerce.vikoabastian.com**
 
 ---
 
 ## 1. Product summary
 
-WhatsApp Catalog Commerce is a Next.js storefront + lightweight admin. Sellers
-manage a catalog (products, categories, store settings) in a protected admin
-area; shoppers browse a fast, mobile-first storefront and tap **"Order via
-WhatsApp"**, which opens WhatsApp with an order summary already typed out. The
-conversation — and the actual sale — continues in WhatsApp.
+Sellers manage their catalog (products, categories, discount codes, store settings) in a protected admin area. Shoppers browse a fast, mobile-first storefront and either pay online via Midtrans or tap **"Order via WhatsApp"**. After checkout, guests land on an order-confirmation page and can track their order status at `/track` without an account.
 
-## 2. Business use case
+Key design decisions:
+- All customers are **guests** (no shopper accounts). The only authenticated users are admins/staff.
+- The WhatsApp handoff is the product for small sellers — Midtrans is an optional online-payment layer on top.
+- Payment mutations that run as `anon` (Midtrans webhook, guest checkout) go through **SECURITY DEFINER RPCs** so RLS never silently blocks them.
 
-Many small merchants already sell entirely through WhatsApp. They lose time
-re-typing product details and prices into chats, and have no shareable,
-always-up-to-date catalog. This project gives them:
+---
 
-- A public catalog link they can share in bios, statuses, and groups.
-- Accurate, formatted prices (Indonesian Rupiah) and stock status.
-- One-tap checkout that drops a clean order summary into their WhatsApp inbox.
-- A simple admin to keep the catalog current.
+## 2. Tech stack
 
-No payment gateway or shipping integration is required — payment and logistics
-are negotiated in chat, exactly as sellers already operate.
+| Area | Choice |
+|---|---|
+| Framework | Next.js 16 (App Router, Turbopack) + React 19 |
+| Language | TypeScript (strict) |
+| Styling | Tailwind CSS v4 · shadcn/ui · Radix UI |
+| Icons / Font | Lucide · Inter |
+| Data | Supabase PostgreSQL + RLS |
+| Auth | Supabase Auth (email/password — admin only) |
+| Storage | Supabase Storage (`product-images` bucket) |
+| Payment | Midtrans Snap (card, GoPay, QRIS, bank transfer) |
+| Email | Resend (order received + payment confirmed + shipping; PDF invoice attached) |
+| PDF | pdf-lib (invoice generation) |
+| WhatsApp | Meta WhatsApp Cloud API (store-owner + customer notifications) |
+| Validation | Zod + React Hook Form |
+| Deployment | Cloudflare Workers via `@opennextjs/cloudflare` |
+| CI | GitHub Actions (typecheck + lint + build + audit) |
+| CD | Cloudflare Builds (auto-deploy on push to `master`) |
 
-## 3. Feature roadmap
+> **Next.js 16 breaking changes:** `middleware` is renamed to `proxy` (`src/middleware.ts`), and route `params`/`searchParams`/`cookies()` are all **async**. See `AGENTS.md`.
 
-**Foundation (this step)**
-- [x] Project structure, Supabase clients (browser/server), session proxy.
-- [x] Database schema, RLS policies, and seed data.
-- [x] Domain types + Zod validation (product / category / store settings).
-- [x] Storefront: landing, product list with category filter, product detail.
-- [x] WhatsApp checkout link builder + checkout page.
-- [x] Admin shell: auth-gated layout, dashboard, products table, product form
-      (validated), categories list, settings view.
+---
 
-**Next**
-- [ ] Wire product/category create-update-delete via Server Actions.
-- [ ] Persist store settings from the admin form.
-- [ ] Multi-item cart → multi-line WhatsApp order.
-- [ ] Role-based admin (use `profiles.role`) and stricter RLS.
-- [ ] Image optimization, search, pagination.
+## 3. Features
 
-## 4. Tech stack
+### Storefront
+- Product catalog with search, category filter, sort, pagination
+- Product detail with gallery, stock badge, star reviews, JSON-LD structured data
+- Cart with localStorage persistence, qty controls, and promo/discount codes
+- **Checkout**: Midtrans Snap (primary) + WhatsApp (fallback)
+- **Order-confirmed page** (`/order-confirmed`) — success screen after guest checkout with order summary, payment badge, and live payment polling
+- **Guest order tracking** (`/track`) — enter phone + order ID to view status without an account; auto-polls until Midtrans payment is confirmed
+- PWA manifest, loading skeletons, Open Graph, sitemap
 
-| Area        | Choice                                             |
-| ----------- | -------------------------------------------------- |
-| Framework   | Next.js (App Router) + React 19                    |
-| Language    | TypeScript (strict)                                |
-| Styling     | Tailwind CSS v4, shadcn/ui (radix-vega), Radix UI  |
-| Icons/Font  | Lucide, Inter                                      |
-| Data        | Supabase PostgreSQL                                |
-| Auth        | Supabase Auth (email/password)                     |
-| Storage     | Supabase Storage (`product-images` bucket)         |
-| Validation  | Zod + React Hook Form (`@hookform/resolvers`)      |
-| Deployment  | Vercel                                             |
+### Admin (`/admin`)
+- Dashboard with revenue total and per-status order counts
+- Orders list with status filter and search (by customer name, phone, or order ID)
+- Order detail: items, customer info, payment status, shipping tracking form
+- Products: create/edit, image upload, stock management, featured flag, low-stock alert, CSV bulk import
+- Categories, discount codes (percent + flat), product review moderation
+- User role management, store settings
 
-> **Note on Next.js version:** this project uses a Next.js release where the
-> `middleware` convention is renamed to **`proxy`** (`src/proxy.ts`), and route
-> `params`/`searchParams` and `cookies()` are **async**. See `AGENTS.md`.
+### Payments & notifications
+- Midtrans Snap popup; `?processing=1` poller actively queries Midtrans every 3 s until payment resolves
+- Webhook at `/api/midtrans/webhook` — verifies signature, calls `settle_payment()` SECURITY DEFINER RPC (handles RLS + stock reconciliation + idempotent notifications)
+- Stock reserved atomically on order insert; released on `expire`/`cancel`/`failure`; re-reserved on retry-paid
+- Fire-and-forget emails via Resend: "order received" on WhatsApp checkout; "payment confirmed" + PDF invoice on Midtrans `paid`
+- WhatsApp notifications to customer on admin status change and shipping update
 
-## 5. Architecture / codegraph
+---
 
-```txt
+## 4. Architecture
+
+```
 .
 ├── db/
-│   ├── schema.sql            # tables, enums, triggers, is_admin, list_users
-│   ├── rls.sql               # row-level security policies
-│   ├── storage.sql           # product-images bucket + storage policies
-│   └── seed.sql              # demo categories/products/settings
+│   ├── schema.sql              # tables, triggers, is_admin(), list_users()
+│   ├── rls.sql                 # row-level security policies
+│   ├── storage.sql             # product-images bucket + upload policies
+│   ├── seed.sql                # demo categories / products / settings
+│   ├── product-reviews.sql     # product_reviews table + anon INSERT policy
+│   ├── discount-codes.sql      # discount_codes + apply_discount_code() RPC
+│   ├── midtrans-payment.sql    # payment_status, snap_token, payment_type columns
+│   ├── customer-email.sql      # customer_email column on orders
+│   ├── shipping-tracking.sql   # courier, tracking_number columns
+│   ├── track-order-rpc.sql     # track_order() SECURITY DEFINER RPC
+│   ├── stock-reservation.sql   # atomic check-and-decrement stock trigger
+│   └── payment-settlement.sql  # stock_released + settle_payment() SECURITY DEFINER RPC
 ├── src/
-│   ├── proxy.ts              # Next "middleware" → refresh session, gate /admin
+│   ├── middleware.ts            # session refresh + /admin gate
 │   ├── app/
-│   │   ├── page.tsx          # landing
-│   │   ├── login/            # admin sign-in (Supabase Auth)
-│   │   ├── products/         # storefront list + [slug] detail
-│   │   ├── checkout/         # WhatsApp order summary
-│   │   └── admin/            # auth-gated: dashboard, products, categories, settings
+│   │   ├── page.tsx             # landing
+│   │   ├── login/               # admin sign-in
+│   │   ├── products/            # catalog list + [slug] detail + review action
+│   │   ├── categories/[slug]/   # per-category grid
+│   │   ├── cart/                # cart page
+│   │   ├── checkout/            # checkout form (Midtrans + WhatsApp)
+│   │   ├── order-confirmed/     # guest post-checkout success page
+│   │   ├── orders/              # customer order list + [id] detail (login required)
+│   │   ├── track/               # guest order lookup
+│   │   ├── admin/               # dashboard, orders, products, categories,
+│   │   │                        #   discounts, reviews, users, settings
+│   │   └── api/
+│   │       ├── midtrans/        # snap-token, webhook, retry-token, check-status
+│   │       └── webhook/whatsapp/ # Meta WA Cloud API webhook
 │   ├── components/
-│   │   ├── admin-sidebar.tsx
-│   │   ├── category-filter.tsx
-│   │   ├── image-uploader.tsx
-│   │   ├── product-card.tsx
-│   │   ├── product-form.tsx
-│   │   ├── product-grid.tsx
-│   │   ├── whatsapp-checkout-button.tsx
-│   │   └── ui/               # shadcn/ui primitives
+│   │   ├── checkout-form.tsx
+│   │   ├── track-payment-poller.tsx  # client poller for /track + /order-confirmed
+│   │   ├── payment-retry-button.tsx  # Snap retry for logged-in users
+│   │   ├── midtrans-checkout-button.tsx
+│   │   └── ui/                  # shadcn/ui primitives
 │   └── lib/
-│       ├── types.ts          # DB row types
-│       ├── slug.ts           # slugify + slug pattern
-│       ├── utils.ts          # cn(), formatRupiah()
-│       ├── whatsapp.ts       # number normalizer + wa.me link builder
-│       ├── supabase/         # client.ts, server.ts, middleware.ts (helper)
-│       └── validations/      # product.ts, category.ts, store-settings.ts (Zod)
+│       ├── types.ts             # DB row types
+│       ├── utils.ts             # cn(), formatRupiah()
+│       ├── cart.ts              # localStorage cart store (Zustand-style)
+│       ├── midtrans.ts          # createSnapToken, verifyWebhookSignature, mapPaymentStatus
+│       ├── email.ts             # Resend client + HTML email templates
+│       ├── invoice.ts           # pdf-lib invoice generator
+│       ├── order-notifications.ts  # fire-and-forget WA + email on payment confirmed
+│       ├── whatsapp.ts          # wa.me link builder
+│       ├── whatsapp-api.ts      # Meta Cloud API client
+│       ├── supabase/            # browser.ts, server.ts
+│       └── validations/         # Zod schemas: order, product, category, …
 ```
 
-**Data flow:** Server Components read the catalog via the Supabase *server*
-client (anon key + RLS). The browser client is used only for auth (login/logout)
-and Storage uploads. `src/proxy.ts` refreshes the session cookie on every
-request and redirects unauthenticated users away from `/admin`.
+**Data flow:**
+- Server Components read the catalog via the Supabase *server* client (anon key + RLS).
+- Guest mutations (order insert, review insert) run as `anon`; no `.select()` after insert.
+- Payment mutations that need elevated access use SECURITY DEFINER RPCs (`settle_payment`, `track_order`, `apply_discount_code`) — direct `.update()` on `orders` is admin-only.
+- `src/middleware.ts` refreshes the session cookie on every request and redirects unauthenticated access away from `/admin`.
 
-## 6. Database schema overview
+---
 
-- **profiles** — one row per admin/staff user, FK to `auth.users`. Has a `role`
-  column (`admin` | `staff`) for future role-based access.
-- **categories** — `name`, unique `slug`, `is_active`, `sort_order`.
-- **products** — `category_id` (nullable FK), `name`, unique `slug`,
-  `description`, `price` and `compare_at_price` (whole Rupiah, integers),
-  `images` (`text[]`), `stock_status` (`available|sold_out|preorder`),
-  `is_featured`, `is_active`, `sort_order`, timestamps.
-- **store_settings** — singleton row (`store_name`, `whatsapp_number`,
-  `currency`, `checkout_message_template`).
+## 5. Database schema
 
-`updated_at` is maintained by a shared trigger. Apply files in order:
-`schema.sql` → `rls.sql` → `storage.sql` → `seed.sql`.
+| Table | Purpose |
+|---|---|
+| `profiles` | One row per admin/staff user (FK to `auth.users`); `role: admin\|staff` |
+| `categories` | `name`, unique `slug`, `is_active`, `sort_order` |
+| `products` | `category_id`, `name`, `slug`, `price`/`compare_at_price` (whole Rupiah), `images text[]`, `stock_status`, `stock_quantity`, `is_featured`, `is_active` |
+| `product_reviews` | `product_id`, `reviewer_name`, `rating`, `body`, `is_approved` (admin-gated) |
+| `discount_codes` | `code` (case-insensitive unique), `type: percent\|flat`, `value`, `max_uses`, `uses`, `expires_at` |
+| `store_settings` | Singleton: `store_name`, `whatsapp_number`, `checkout_message_template` |
+| `orders` | Full order record: items (JSONB), total, source, customer info, `payment_status`, `midtrans_order_id`, `stock_released`, courier, tracking |
 
-## 7. Security notes
+**Key RPCs (SECURITY DEFINER):**
+- `settle_payment(order_id, status, payment_type)` — applies payment status, reconciles reserved stock, returns `notified=true` on the single `paid` transition (idempotent).
+- `track_order(phone, order_id)` — anon-safe order lookup for `/track`.
+- `apply_discount_code(code)` — atomically validates + increments `uses`.
 
-- **Service-role key is never used in app code.** Both the browser and server
-  Supabase clients use only `NEXT_PUBLIC_SUPABASE_ANON_KEY`. RLS is the security
-  boundary.
-- **RLS is enabled on every app table.** Public users can read only *active*
-  products/categories and store settings, and may insert (but not read) orders.
-  Only users whose `profiles.role = 'admin'` may manage catalog data, settings,
-  and orders — enforced by the `public.is_admin()` helper used in `db/rls.sql`.
-- **Role bootstrapping:** a trigger creates a `profiles` row on signup (the
-  first user becomes `admin`, later users `staff`); applying `db/schema.sql`
-  also backfills existing auth users as `admin` so no one is locked out.
-- **Route protection:** `src/proxy.ts` blocks unauthenticated access to
-  `/admin`; the admin layout additionally verifies the caller's `profiles.role`
-  is `admin` (defense in depth on top of RLS).
-- Never commit real secrets. `.env*` is git-ignored (except `.env.example`).
+Apply DB files in order: `schema.sql` → `rls.sql` → `storage.sql` → then the rest in any order.
 
-## 8. Local development setup
+---
+
+## 6. Security
+
+- **RLS on every table.** Anon users may INSERT orders and reviews (no read-back). Catalog is public read. Only `is_admin()` users may UPDATE/DELETE.
+- **No service-role key in app code.** Both browser and server Supabase clients use only `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+- **SECURITY DEFINER RPCs** for any write path that runs as `anon` or non-admin auth (webhook, guest order tracking, discount validation, payment settlement).
+- **Midtrans webhook** verified by SHA-512 signature (`order_id + status_code + gross_amount + server_key`) before any DB write.
+- **Route protection:** `src/middleware.ts` blocks `/admin` for unauthenticated users; admin layout re-checks `profiles.role = 'admin'` (defense in depth).
+- Role bootstrapping: first signup becomes `admin`, later signups become `staff`. `db/schema.sql` backfills existing users.
+
+---
+
+## 7. Local development
 
 ```bash
 # 1. Install dependencies
 npm install
 
 # 2. Configure environment
-cp .env.example .env.local   # then fill in your Supabase values
+cp .env.example .env.local   # fill in Supabase, Midtrans, Resend, WhatsApp values
 
-# 3. Apply the database (Supabase SQL editor or psql), in order:
-#    db/schema.sql → db/rls.sql → db/storage.sql → db/seed.sql
-#    (storage.sql creates the public `product-images` bucket + upload policies)
+# 3. Apply the database (Supabase SQL editor), in order:
+#    schema.sql → rls.sql → storage.sql → (remaining db/*.sql files)
 
-# 4. Create an admin user in Supabase Auth (Add user → Create new user,
-#    with a password and "Auto Confirm"). schema.sql backfills it as admin.
+# 4. Create an admin user in Supabase Auth (Add user → Create new user + Auto Confirm)
 
-# 5. Run the app:
+# 5. Run the dev server
 npm run dev
 ```
 
-Visit `http://localhost:3000` for the storefront and `/admin` for the admin
-(sign in at `/login`).
+Visit `http://localhost:3000` for the storefront and `/admin` for the admin panel.
 
-## 9. Environment variables
+> **macOS < 13.5:** `initOpenNextCloudflareForDev()` throws a non-fatal workerd error on startup. `next dev` still serves all Supabase-backed pages normally. Only Cloudflare bindings (KV/R2) are unavailable locally on those machines.
 
-| Variable                            | Required | Description                                   |
-| ----------------------------------- | -------- | --------------------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`          | yes      | Supabase project URL.                         |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY`     | yes      | Public anon key (browser-safe).               |
-| `NEXT_PUBLIC_STORE_WHATSAPP_NUMBER` | no       | Fallback WhatsApp number for checkout links.  |
+---
 
-## 10. Deployment plan
+## 8. Environment variables
 
-1. Push the repository to GitHub and import it into **Vercel**.
-2. Add the three environment variables in the Vercel project settings.
-3. Ensure the Supabase SQL has been applied (`schema.sql` → `rls.sql` →
-   `storage.sql`), which also creates the public `product-images` bucket.
-4. Deploy. Next.js auto-detects the App Router; `src/proxy.ts` runs at the edge
-   to keep sessions fresh.
+Most secrets are stored as **Wrangler secrets** (`wrangler secret put`) for the Cloudflare Workers deployment; only a few live in `.env.local` / `wrangler.jsonc`. See `.env.example` for the full list.
 
-## 11. Portfolio case study notes
+| Variable | Where | Required | Description |
+|---|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | `.env.local` / Cloudflare env | yes | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `.env.local` / Cloudflare env | yes | Public anon key (browser-safe) |
+| `MIDTRANS_SERVER_KEY` | Wrangler secret | yes | Midtrans server key (never expose to browser) |
+| `NEXT_PUBLIC_MIDTRANS_CLIENT_KEY` | `next.config.ts` (hardcoded) | yes | Midtrans client key |
+| `MIDTRANS_IS_PRODUCTION` | `wrangler.jsonc` vars | yes | `"true"` for production Midtrans |
+| `NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION` | `next.config.ts` (hardcoded) | yes | Same, baked into bundle |
+| `RESEND_API_KEY` | Wrangler secret | yes | Resend API key for email delivery |
+| `RESEND_FROM` | `wrangler.jsonc` vars | yes | Verified sender address, e.g. `orders@yourdomain.com` |
+| `WHATSAPP_API_TOKEN` | Wrangler secret | no | Meta Cloud API system-user token |
+| `WHATSAPP_API_PHONE_NUMBER_ID` | `.env.local` / Cloudflare env | no | Meta sender phone number ID |
+| `WHATSAPP_API_NOTIFY_NUMBER` | `.env.local` / Cloudflare env | no | Store owner's number for order notifications |
+| `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | `.env.local` / Cloudflare env | no | Arbitrary secret for Meta webhook verification |
+| `NEXT_PUBLIC_STORE_WHATSAPP_NUMBER` | `.env.local` / Cloudflare env | no | Fallback checkout number if store_settings is empty |
 
-- **Problem framing:** turns an existing informal sales channel (WhatsApp) into
-  a structured, shareable catalog without forcing merchants to change how they
-  transact.
-- **Engineering highlights:** strict TypeScript end-to-end; Zod schemas shared
-  between form validation and (future) server mutations; RLS-first security with
-  no service-role key in app code; clean separation of browser vs. server
-  Supabase clients; adapted to a Next.js version with breaking changes
-  (`proxy.ts`, async `params`/`cookies`).
-- **Deliberate scoping:** no payment/shipping/multi-tenant — the WhatsApp
-  handoff is the product, and the simplifications (singleton settings,
-  authenticated==admin) are documented with a clear upgrade path.
+> `NEXT_PUBLIC_*` vars must be **hardcoded in `next.config.ts`** for Cloudflare Builds — `process.env.X` inside the env block resolves to `""` at build time.
+
+---
+
+## 9. Deployment (Cloudflare Workers)
+
+```bash
+# Preview locally with Cloudflare bindings
+npm run preview
+
+# Deploy to production
+npm run deploy
+# or push to master — Cloudflare Builds auto-deploys
+```
+
+1. Connect the GitHub repo to **Cloudflare Builds** and set build command `npm run build`.
+2. Add environment variables in the Cloudflare dashboard (Supabase, Midtrans public keys, WhatsApp, Resend from address).
+3. Add secrets via Wrangler (`wrangler secret put MIDTRANS_SERVER_KEY`, etc.).
+4. Register the Midtrans webhook URL in the Midtrans dashboard: `https://your-domain.com/api/midtrans/webhook`.
+5. (Optional) Register the Meta WhatsApp webhook: `https://your-domain.com/api/webhook/whatsapp`.
+
+---
+
+## 10. Portfolio notes
+
+- **Problem framing:** turns an existing informal sales channel (WhatsApp) into a structured, shareable catalog without forcing merchants to change how they transact. Midtrans is layered on top as an optional online-payment path.
+- **Engineering highlights:** SECURITY DEFINER RPCs as the boundary between anon/RLS and privileged writes; atomic stock check-and-decrement trigger prevents overselling under concurrent load; `settle_payment` provides idempotent payment + stock reconciliation so webhook and poller can race safely; adapted to Next.js 16 breaking conventions (`proxy.ts` → `middleware.ts`, async params/cookies).
+- **Deliberate scoping:** no shopper accounts (guests only), singleton store settings, admin=authenticated. Each simplification is documented in `PROGRESS.md` with a clear upgrade path.
