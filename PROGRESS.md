@@ -117,9 +117,9 @@ Domain `vikoabastian.com` verified in Resend. Sandbox sender `onboarding@resend.
 
 ## Next / Future Work
 
-Candidate improvements, roughly in priority order. None started yet.
+Candidate improvements, roughly in priority order.
 
-1. **Sandbox end-to-end test of expiry** — drive a real Midtrans sandbox payment to expiry and confirm the webhook releases stock in production (PR #79 verified the DB layer; the live webhook path is untested end-to-end).
+1. **Sandbox end-to-end test of expiry** — ✅ *code path verified 2026-06-10* (static): `expire`/`cancel`/`failure` → `mapPaymentStatus` returns `"failed"` → `settle_payment` releases reserved stock once (idempotent via `stock_released`). The remaining piece is a **live** sandbox run, which is a manual step (see "Manual: verify Midtrans expiry live" in Known Gotchas) — it can't be automated locally (sandbox expiry is 24h, signing a simulated webhook needs the sandbox server key, and any live order pollutes prod + decrements real stock).
 2. **`/track` payment-status polling** — guests landing on `/track` after a Midtrans payment see a static status; add light polling so "confirming → paid" updates without a manual refresh (parity with the logged-in `?processing=1` poller).
 3. **Admin order search** — `/admin/orders` filters by status only; add search by customer name / phone / order ID.
 4. **Dedicated order-confirmed page** — instead of dropping guests on a cold `/track`, a `/order-confirmed?id=` page summarising the order.
@@ -148,6 +148,8 @@ Candidate improvements, roughly in priority order. None started yet.
 - **Stock reservation** — the `decrement_stock_on_order` trigger raises `Stok tidak cukup untuk produk: <name>` when stock is insufficient, which rolls back the order INSERT. Callers must surface this: WhatsApp checkout `createOrder` must be awaited (not fire-and-forget) and snap-token route forwards the message. `NULL` stock_quantity = unlimited and is skipped.
 - **orders is RLS admin-only for UPDATE** — `orders_admin_write` is the only UPDATE policy; `anon` (webhook) and non-admin customers (check-status poller) CANNOT update orders directly. Any payment/order mutation from those paths MUST go through a SECURITY DEFINER RPC (e.g. `settle_payment`). A direct `.update()` silently affects 0 rows. This masked itself in testing because the developer's admin session satisfied the policy.
 - **Payment settlement** — always call `settle_payment(order_id, status, payment_type)` rather than updating `payment_status` directly. It bypasses RLS, reconciles reserved stock, and returns `notified=true` only on the single transition into paid so confirmations fire exactly once across webhook + poller.
+- **`deny` maps to `pending`, not `failed`** — `mapPaymentStatus` (`src/lib/midtrans.ts`) treats `transaction_status: "deny"` as `pending`, so a *denied* payment does **not** release reserved stock; stock is only released when the transaction later reports `expire`/`cancel`/`failure` (→ `failed`). Intentional (denial can be retried), but means denial alone holds stock until expiry. Expiry default is **1440 min (24h)** — set in `createSnapToken`'s `expiry` block.
+- **Manual: verify Midtrans expiry live** — to confirm the expiry→stock-release path end-to-end against the real sandbox: (1) place a Midtrans order so stock reserves; (2) either wait out the 24h expiry or shorten `createSnapToken`'s `expiry.duration` temporarily; (3) when Midtrans POSTs the `expire` notification to `/api/midtrans/webhook`, confirm `orders.payment_status='failed'`, `stock_released=true`, and the product's `stock_quantity` is restored. To simulate without waiting, POST a notification with `transaction_status:"expire"` and a valid `signature_key` = `SHA512(order_id + status_code + gross_amount + MIDTRANS_SERVER_KEY)`. Needs the sandbox server key; do it against a disposable order.
 
 ---
 
