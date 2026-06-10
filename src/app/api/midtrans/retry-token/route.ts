@@ -62,13 +62,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Payment gateway error" }, { status: 502 })
   }
 
-  // Update midtrans_order_id so check-status can query the correct transaction.
-  // Same RLS caveat as snap-token: silently no-ops for non-admin auth users; no
-  // practical impact while all customers are anon guests. See snap-token/route.ts comment.
-  await supabase
-    .from("orders")
-    .update({ midtrans_order_id: retryMidtransId })
-    .eq("id", orderId)
+  await supabase.rpc("store_snap_ids", {
+    p_order_id: orderId,
+    p_midtrans_order_id: retryMidtransId,
+  })
 
   return NextResponse.json({ snapToken })
 }

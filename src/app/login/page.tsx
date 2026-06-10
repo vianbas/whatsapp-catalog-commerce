@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Mail } from "lucide-react";
 
@@ -49,7 +50,17 @@ function LoginForm() {
         setError(signInError.message);
         return;
       }
-      router.push("/admin");
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user!.id)
+        .maybeSingle();
+      const isStaff = profile?.role === "admin" || profile?.role === "staff";
+      const dest = isStaff
+        ? "/admin"
+        : (searchParams.get("redirectedFrom") ?? "/orders");
+      router.push(dest);
       router.refresh();
     } catch {
       setError("Unable to sign in. Check your Supabase configuration.");
@@ -68,10 +79,11 @@ function LoginForm() {
     setLinkLoading(true);
     try {
       const supabase = createClient();
+      const nextPath = searchParams.get("redirectedFrom") ?? "/orders";
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/admin`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${nextPath}`,
         },
       });
       if (otpError) {
@@ -118,9 +130,9 @@ function LoginForm() {
     <main className="flex flex-1 items-center justify-center px-6 py-12">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>Admin sign in</CardTitle>
+          <CardTitle>Sign in</CardTitle>
           <CardDescription>
-            Sign in to manage the catalog and store settings.
+            Sign in to track your orders or manage the store.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -195,6 +207,13 @@ function LoginForm() {
             )}
             Email me a login link
           </Button>
+
+          <p className="text-muted-foreground text-center text-sm">
+            New here?{" "}
+            <Link href="/register" className="underline hover:text-foreground">
+              Create an account
+            </Link>
+          </p>
         </CardContent>
       </Card>
     </main>

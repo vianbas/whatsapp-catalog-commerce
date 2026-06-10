@@ -11,9 +11,9 @@ Live: **https://w-commerce.vikoabastian.com**
 Sellers manage their catalog (products, categories, discount codes, store settings) in a protected admin area. Shoppers browse a fast, mobile-first storefront and either pay online via Midtrans or tap **"Order via WhatsApp"**. After checkout, guests land on an order-confirmation page and can track their order status at `/track` without an account.
 
 Key design decisions:
-- All customers are **guests** (no shopper accounts). The only authenticated users are admins/staff.
+- Shoppers can check out as **guests** (phone + name only) or **register** for an account to track orders by email. The only privileged users are admins/staff.
 - The WhatsApp handoff is the product for small sellers — Midtrans is an optional online-payment layer on top.
-- Payment mutations that run as `anon` (Midtrans webhook, guest checkout) go through **SECURITY DEFINER RPCs** so RLS never silently blocks them.
+- Payment mutations that run as `anon` or non-admin auth go through **SECURITY DEFINER RPCs** so RLS never silently blocks them.
 
 ---
 
@@ -26,7 +26,7 @@ Key design decisions:
 | Styling | Tailwind CSS v4 · shadcn/ui · Radix UI |
 | Icons / Font | Lucide · Inter |
 | Data | Supabase PostgreSQL + RLS |
-| Auth | Supabase Auth (email/password — admin only) |
+| Auth | Supabase Auth (email/password — admin, staff, customer roles) |
 | Storage | Supabase Storage (`product-images` bucket) |
 | Payment | Midtrans Snap (card, GoPay, QRIS, bank transfer) |
 | Email | Resend (order received + payment confirmed + shipping; PDF invoice attached) |
@@ -47,9 +47,10 @@ Key design decisions:
 - Product catalog with search, category filter, sort, pagination
 - Product detail with gallery, stock badge, star reviews, JSON-LD structured data
 - Cart with localStorage persistence, qty controls, and promo/discount codes
-- **Checkout**: Midtrans Snap (primary) + WhatsApp (fallback)
+- **Checkout**: Midtrans Snap (primary) + WhatsApp (fallback); works for guests and registered customers
 - **Order-confirmed page** (`/order-confirmed`) — success screen after guest checkout with order summary, payment badge, and live payment polling
 - **Guest order tracking** (`/track`) — enter phone + order ID to view status without an account; auto-polls until Midtrans payment is confirmed
+- **Customer accounts** — register (`/register`) or sign in (`/login`); `/orders` shows order history; auth-aware nav (Sign in / Register / My Orders / Sign out) on catalog header
 - PWA manifest, loading skeletons, Open Graph, sitemap
 
 ### Admin (`/admin`)
@@ -85,7 +86,8 @@ Key design decisions:
 │   ├── shipping-tracking.sql   # courier, tracking_number columns
 │   ├── track-order-rpc.sql     # track_order() SECURITY DEFINER RPC
 │   ├── stock-reservation.sql   # atomic check-and-decrement stock trigger
-│   └── payment-settlement.sql  # stock_released + settle_payment() SECURITY DEFINER RPC
+│   ├── payment-settlement.sql  # stock_released + settle_payment() SECURITY DEFINER RPC
+│   └── customer-accounts.sql   # customer role + store_snap_ids() RPC
 ├── src/
 │   ├── middleware.ts            # session refresh + /admin gate
 │   ├── app/
@@ -135,7 +137,7 @@ Key design decisions:
 
 | Table | Purpose |
 |---|---|
-| `profiles` | One row per admin/staff user (FK to `auth.users`); `role: admin\|staff` |
+| `profiles` | One row per authenticated user (FK to `auth.users`); `role: admin\|staff\|customer` |
 | `categories` | `name`, unique `slug`, `is_active`, `sort_order` |
 | `products` | `category_id`, `name`, `slug`, `price`/`compare_at_price` (whole Rupiah), `images text[]`, `stock_status`, `stock_quantity`, `is_featured`, `is_active` |
 | `product_reviews` | `product_id`, `reviewer_name`, `rating`, `body`, `is_approved` (admin-gated) |
@@ -147,8 +149,9 @@ Key design decisions:
 - `settle_payment(order_id, status, payment_type)` — applies payment status, reconciles reserved stock, returns `notified=true` on the single `paid` transition (idempotent).
 - `track_order(phone, order_id)` — anon-safe order lookup for `/track`.
 - `apply_discount_code(code)` — atomically validates + increments `uses`.
+- `store_snap_ids(order_id, snap_token, midtrans_order_id)` — stores Midtrans token fields, bypassing `orders_admin_write` RLS so non-admin customers can store their payment IDs; COALESCE preserves existing values when NULL is passed.
 
-Apply DB files in order: `schema.sql` → `rls.sql` → `storage.sql` → then the rest in any order.
+Apply DB files in order: `schema.sql` → `rls.sql` → `storage.sql` → then the rest in any order (including `customer-accounts.sql` for customer account support).
 
 ---
 
@@ -159,7 +162,7 @@ Apply DB files in order: `schema.sql` → `rls.sql` → `storage.sql` → then t
 - **SECURITY DEFINER RPCs** for any write path that runs as `anon` or non-admin auth (webhook, guest order tracking, discount validation, payment settlement).
 - **Midtrans webhook** verified by SHA-512 signature (`order_id + status_code + gross_amount + server_key`) before any DB write.
 - **Route protection:** `src/middleware.ts` blocks `/admin` for unauthenticated users; admin layout re-checks `profiles.role = 'admin'` (defense in depth).
-- Role bootstrapping: first signup becomes `admin`, later signups become `staff`. `db/schema.sql` backfills existing users.
+- Role bootstrapping: first signup becomes `admin`, later signups become `customer` (staff is promoted manually by admin). `db/schema.sql` backfills existing users.
 
 ---
 

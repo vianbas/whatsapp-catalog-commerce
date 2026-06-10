@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { CategoryFilter } from "@/components/category-filter";
 import { ProductGrid } from "@/components/product-grid";
 import { CartIndicator } from "@/components/cart-indicator";
+import { CustomerNav } from "@/components/customer-nav";
 import { SearchBar } from "@/components/search-bar";
 import { SortSelect, type SortOption } from "@/components/sort-select";
 import { Button } from "@/components/ui/button";
@@ -123,12 +124,7 @@ export default async function ProductsPage({
           >
             ← Home
           </Link>
-          <Link
-            href="/orders"
-            className="text-muted-foreground text-sm hover:underline"
-          >
-            My Orders
-          </Link>
+          <CustomerNav />
           <CartIndicator />
         </div>
       </div>

@@ -73,7 +73,11 @@ Repo: https://github.com/vianbas/whatsapp-catalog-commerce
 
 ---
 
-## DB Migrations — ALL DONE ✓
+## DB Migrations
+
+**Pending:** `db/customer-accounts.sql` — run in Supabase SQL editor before deploying the customer-accounts feature to production.
+
+### Previously applied ✓
 
 - `db/stock-decrement.sql` — trigger decrements stock on order insert
 - `db/discount-codes.sql` — discount_codes table + RLS + apply_discount_code() RPC
@@ -139,6 +143,22 @@ Candidate improvements, roughly in priority order.
 
    The two ⚠️ items have **zero functional impact today** — all customers are anon guests, all authenticated users are admins (who satisfy `orders_admin_write`). Payment still settles via webhook; `check-status` poller just falls back to DB polling instead of actively querying Midtrans. Both routes now carry an inline comment. If customer accounts are ever added, move the snap-token/retry-token UPDATEs into a SECURITY DEFINER RPC (`store_snap_token(order_id, snap_token, midtrans_order_id)`) so `midtrans_order_id` is written reliably.
 
+6. **Customer accounts** — ✅ *done 2026-06-10*. Storefront shoppers can now register and sign in with email + password. Their orders are linked to their user ID so `/orders` shows their history without entering phone + order ID. Key changes:
+   - `db/customer-accounts.sql` — adds `customer` to `user_role` enum; updates `handle_new_user` trigger (new signups → `customer` by default; first-ever user still → `admin`); adds `store_snap_ids()` SECURITY DEFINER RPC (fixes snap-token/retry-token RLS gap for auth'd customers)
+   - `src/lib/types.ts` — added `"customer"` to `Profile.role`
+   - `src/app/register/page.tsx` — new registration page (name, email, password → `/orders` on success)
+   - `src/app/login/page.tsx` — role-based redirect: admin/staff → `/admin`; customer → `redirectedFrom` or `/orders`; generic title; Register link; magic link `next` now uses `redirectedFrom`
+   - `src/app/auth/callback/route.ts` — fallback changed from `/admin` to `/` (admin was unsafe default for new customer sign-ins via magic link)
+   - `src/app/api/midtrans/snap-token/route.ts` — replaced direct `.update()` with `store_snap_ids` RPC
+   - `src/app/api/midtrans/retry-token/route.ts` — same
+   - `src/app/orders/page.tsx` — login redirect now carries `?redirectedFrom=/orders`
+   - `src/components/customer-nav.tsx` — server component: unauthenticated → "Sign in" + "Register"; authenticated → "My Orders" + "Sign out"
+   - `src/components/sign-out-button.tsx` — client component using `signOut` server action
+   - `src/app/actions.ts` — `signOut` server action
+   - `src/app/products/page.tsx` — replaced hardcoded "My Orders" link with `<CustomerNav />`
+
+   **Pending DB migration:** run `db/customer-accounts.sql` in Supabase SQL editor.
+
 ### Skipped indefinitely
 - **WhatsApp message templates** — free-form WA messages only work within a 24-hr customer service window; approved Meta templates work anytime but require Meta Business Manager external approval.
 
@@ -162,7 +182,7 @@ Candidate improvements, roughly in priority order.
 - **Stock reservation** — the `decrement_stock_on_order` trigger raises `Stok tidak cukup untuk produk: <name>` when stock is insufficient, which rolls back the order INSERT. Callers must surface this: WhatsApp checkout `createOrder` must be awaited (not fire-and-forget) and snap-token route forwards the message. `NULL` stock_quantity = unlimited and is skipped.
 - **orders is RLS admin-only for UPDATE** — `orders_admin_write` is the only UPDATE policy; `anon` (webhook) and non-admin customers (check-status poller) CANNOT update orders directly. Any payment/order mutation from those paths MUST go through a SECURITY DEFINER RPC (e.g. `settle_payment`). A direct `.update()` silently affects 0 rows. This masked itself in testing because the developer's admin session satisfied the policy.
 - **Payment settlement** — always call `settle_payment(order_id, status, payment_type)` rather than updating `payment_status` directly.
-- **snap-token/retry-token UPDATE caveat** — the `.update({ snap_token, midtrans_order_id })` in both routes silently no-ops for non-admin authenticated users (RLS). No practical impact while customers are anon guests. If customer accounts are added, wrap those UPDATEs in a SECURITY DEFINER RPC; otherwise `midtrans_order_id` won't be stored and check-status falls back to DB polling (payment still settles via webhook). It bypasses RLS, reconciles reserved stock, and returns `notified=true` only on the single transition into paid so confirmations fire exactly once across webhook + poller.
+- **snap-token/retry-token use `store_snap_ids` RPC** — both routes call `store_snap_ids(p_order_id, p_snap_token, p_midtrans_order_id)` (SECURITY DEFINER) instead of `.update()` directly. The direct `.update()` would silently no-op for non-admin authenticated customers (RLS). COALESCE means passing NULL for `p_snap_token` preserves the existing value (retry-token only needs to update `midtrans_order_id`). Run `db/customer-accounts.sql` to create the RPC.
 - **`deny` maps to `pending`, not `failed`** — `mapPaymentStatus` (`src/lib/midtrans.ts`) treats `transaction_status: "deny"` as `pending`, so a *denied* payment does **not** release reserved stock; stock is only released when the transaction later reports `expire`/`cancel`/`failure` (→ `failed`). Intentional (denial can be retried), but means denial alone holds stock until expiry. Expiry default is **1440 min (24h)** — set in `createSnapToken`'s `expiry` block.
 - **Manual: verify Midtrans expiry live** — to confirm the expiry→stock-release path end-to-end against the real sandbox: (1) place a Midtrans order so stock reserves; (2) either wait out the 24h expiry or shorten `createSnapToken`'s `expiry.duration` temporarily; (3) when Midtrans POSTs the `expire` notification to `/api/midtrans/webhook`, confirm `orders.payment_status='failed'`, `stock_released=true`, and the product's `stock_quantity` is restored. To simulate without waiting, POST a notification with `transaction_status:"expire"` and a valid `signature_key` = `SHA512(order_id + status_code + gross_amount + MIDTRANS_SERVER_KEY)`. Needs the sandbox server key; do it against a disposable order.
 
@@ -201,6 +221,10 @@ Upgrade policy: bump for **security / performance / memory** reasons; hold major
 | Tracking form component | `src/components/order-tracking-form.tsx` |
 | Guest order lookup page | `src/app/track/page.tsx` |
 | Guest post-checkout confirmation page | `src/app/order-confirmed/page.tsx` |
+| Customer registration page | `src/app/register/page.tsx` |
+| Auth-aware storefront nav | `src/components/customer-nav.tsx` |
+| Sign-out server action | `src/app/actions.ts` |
+| Customer accounts DB migration | `db/customer-accounts.sql` |
 | Cart store (localStorage) | `src/lib/cart.ts` |
 | Shared DB types | `src/lib/types.ts` |
 | Order validation schema | `src/lib/validations/order.ts` |
