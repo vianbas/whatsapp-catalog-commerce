@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 
 import { createClient } from "@/lib/supabase/server"
 import { verifyWebhookSignature, mapPaymentStatus } from "@/lib/midtrans"
-import { sendOrderConfirmationToCustomer } from "@/lib/whatsapp-api"
-import { sendOrderConfirmationEmail } from "@/lib/email"
+import { notifyOrderConfirmed, type SettledOrder } from "@/lib/order-notifications"
 
 interface MidtransNotification {
   order_id: string
@@ -55,47 +54,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     : body.order_id
 
   const supabase = await createClient()
-  const { data: order, error } = await supabase
-    .from("orders")
-    .update({
-      payment_status: paymentStatus,
-      payment_type: body.payment_type ?? null,
-    })
-    .eq("id", baseOrderId)
-    // Only update (and notify) if not already marked paid — prevents duplicate
-    // notifications on Midtrans webhook retries.
-    .neq("payment_status", "paid")
-    .select("id, customer_id, customer_phone, customer_email, customer_name, items, total, status")
-    .maybeSingle()
+
+  // settle_payment (SECURITY DEFINER) applies the status, reconciles reserved
+  // stock (release on failed / re-reserve on paid), and returns the order with
+  // `notified = true` only on the single transition into paid. A direct
+  // .update() here would be blocked by RLS — the webhook runs as anon.
+  const { data, error } = await supabase.rpc("settle_payment", {
+    p_order_id: baseOrderId,
+    p_status: paymentStatus,
+    p_payment_type: body.payment_type ?? null,
+  })
 
   if (error) {
-    console.error("[Midtrans webhook] update error:", error)
+    console.error("[Midtrans webhook] settle_payment error:", error)
   }
 
-  // Send order confirmation on successful payment — fire and forget.
-  // `order` is null when the row was already paid (idempotent retry), so notifications
-  // only fire once.
-  if (paymentStatus === "paid" && order) {
-    if (order.customer_phone) {
-      void sendOrderConfirmationToCustomer(
-        order.customer_phone,
-        order.id,
-        order.items as { name: string; quantity: number; price: number }[],
-        order.total
-      ).catch(() => {})
-    }
-    if (order.customer_email) {
-      const guestPhone = !order.customer_id ? order.customer_phone ?? null : null
-      void sendOrderConfirmationEmail(
-        order.customer_email,
-        order.id,
-        order.items as { name: string; quantity: number; price: number }[],
-        order.total,
-        order.customer_name,
-        "paid",
-        guestPhone
-      ).catch(() => {})
-    }
+  const order = (data as (SettledOrder & { notified: boolean })[] | null)?.[0]
+  if (order?.notified) {
+    notifyOrderConfirmed(order)
   }
 
   return new NextResponse("OK", { status: 200 })
