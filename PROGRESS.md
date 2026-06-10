@@ -115,14 +115,6 @@ Domain `vikoabastian.com` verified in Resend. Sandbox sender `onboarding@resend.
 
 ---
 
-## Open PRs — awaiting merge
-
-| PR | Feature | Branch | DB migration? |
-|---|---|---|---|
-| #79 | Release stock on failed/expired Midtrans payments (+ fix RLS-blocked settlement) | `feature/release-stock-on-failed-payment` | Yes — `db/payment-settlement.sql` (already run on live DB) |
-
----
-
 ## Next / Future Work
 
 Candidate improvements, roughly in priority order. None started yet.
