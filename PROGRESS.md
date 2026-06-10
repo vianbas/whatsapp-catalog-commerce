@@ -68,6 +68,7 @@ Repo: https://github.com/vianbas/whatsapp-catalog-commerce
 - **Guest email link fix** (PR #73) — confirmation/tracking emails for guest orders link to `/track?id=...` instead of login-gated `/orders/[id]`
 - **Guest checkout redirect fix** (PR #75) — after WhatsApp/Midtrans checkout, guests are redirected to `/track?id=...` instead of login-gated `/orders`
 - **Stock reservation** (PR #77) — atomic check-and-decrement trigger on order insert; concurrent orders for the last unit can't oversell (one wins the row lock, the other's INSERT rolls back with a stock error surfaced to the customer)
+- **Stock release on failed payment** (PR #79) — Midtrans orders reserve stock at creation; `settle_payment()` RPC releases it on failed/expired and re-reserves on retry-paid. Also fixed a latent RLS bug: payment settlement now runs via SECURITY DEFINER (webhook is `anon`, check-status is non-admin — both were RLS-blocked from updating orders before)
 
 ---
 
@@ -82,6 +83,7 @@ Repo: https://github.com/vianbas/whatsapp-catalog-commerce
 - `db/shipping-tracking.sql` — adds courier, tracking_number to orders (PR #69, run 2026-06-09)
 - `db/track-order-rpc.sql` — creates track_order() SECURITY DEFINER RPC (PR #70, run 2026-06-09)
 - `db/stock-reservation.sql` — replaces decrement trigger with atomic check-and-decrement (PR #77, run 2026-06-10)
+- `db/payment-settlement.sql` — adds `orders.stock_released` + `settle_payment()` RPC; releases/re-reserves stock on payment status changes (PR #79, run 2026-06-10)
 
 ---
 
@@ -113,10 +115,26 @@ Domain `vikoabastian.com` verified in Resend. Sandbox sender `onboarding@resend.
 
 ---
 
-## Features — PENDING
+## Open PRs — awaiting merge
 
-### WhatsApp message templates (skipped indefinitely)
-Current free-form WA messages only work within a 24-hr customer service window. Approved Meta templates work anytime but require Meta Business Manager external approval — skipped until approved.
+| PR | Feature | Branch | DB migration? |
+|---|---|---|---|
+| #79 | Release stock on failed/expired Midtrans payments (+ fix RLS-blocked settlement) | `feature/release-stock-on-failed-payment` | Yes — `db/payment-settlement.sql` (already run on live DB) |
+
+---
+
+## Next / Future Work
+
+Candidate improvements, roughly in priority order. None started yet.
+
+1. **Sandbox end-to-end test of expiry** — drive a real Midtrans sandbox payment to expiry and confirm the webhook releases stock in production (PR #79 verified the DB layer; the live webhook path is untested end-to-end).
+2. **`/track` payment-status polling** — guests landing on `/track` after a Midtrans payment see a static status; add light polling so "confirming → paid" updates without a manual refresh (parity with the logged-in `?processing=1` poller).
+3. **Admin order search** — `/admin/orders` filters by status only; add search by customer name / phone / order ID.
+4. **Dedicated order-confirmed page** — instead of dropping guests on a cold `/track`, a `/order-confirmed?id=` page summarising the order.
+5. **Audit other anon/non-admin write paths** — the RLS-blocked `orders` UPDATE (fixed for payments in #79) suggests checking whether any other customer-facing mutation silently no-ops under RLS.
+
+### Skipped indefinitely
+- **WhatsApp message templates** — free-form WA messages only work within a 24-hr customer service window; approved Meta templates work anytime but require Meta Business Manager external approval.
 
 ---
 
@@ -134,6 +152,8 @@ Current free-form WA messages only work within a 24-hr customer service window. 
 - **Email HTML escaping** — always use `escapeHtml()` from `src/lib/email.ts` before interpolating user-supplied values (customerName, item names) into HTML strings
 - **Currency formatting** — use `formatRupiah` from `src/lib/utils.ts` everywhere; do not create local `formatRp` copies (they produce inconsistent output)
 - **Stock reservation** — the `decrement_stock_on_order` trigger raises `Stok tidak cukup untuk produk: <name>` when stock is insufficient, which rolls back the order INSERT. Callers must surface this: WhatsApp checkout `createOrder` must be awaited (not fire-and-forget) and snap-token route forwards the message. `NULL` stock_quantity = unlimited and is skipped.
+- **orders is RLS admin-only for UPDATE** — `orders_admin_write` is the only UPDATE policy; `anon` (webhook) and non-admin customers (check-status poller) CANNOT update orders directly. Any payment/order mutation from those paths MUST go through a SECURITY DEFINER RPC (e.g. `settle_payment`). A direct `.update()` silently affects 0 rows. This masked itself in testing because the developer's admin session satisfied the policy.
+- **Payment settlement** — always call `settle_payment(order_id, status, payment_type)` rather than updating `payment_status` directly. It bypasses RLS, reconciles reserved stock, and returns `notified=true` only on the single transition into paid so confirmations fire exactly once across webhook + poller.
 
 ---
 
