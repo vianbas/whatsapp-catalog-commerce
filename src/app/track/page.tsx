@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
+import { TrackPaymentPoller } from "@/components/track-payment-poller"
 import { createClient } from "@/lib/supabase/server"
 import { formatRupiah } from "@/lib/utils"
 import type { OrderItem, OrderStatus } from "@/lib/types"
@@ -18,6 +19,13 @@ const STATUS_LABEL: Record<string, string> = {
   contacted: "Diproses",
   completed: "Selesai",
   cancelled: "Dibatalkan",
+}
+
+const PAYMENT_BADGE: Record<string, { label: string; className: string }> = {
+  paid:    { label: "Dibayar", className: "border-green-600 text-green-700 dark:text-green-400" },
+  pending: { label: "Menunggu pembayaran", className: "border-yellow-500 text-yellow-700 dark:text-yellow-400" },
+  failed:  { label: "Pembayaran gagal", className: "border-destructive text-destructive" },
+  unpaid:  { label: "Belum dibayar", className: "text-muted-foreground" },
 }
 
 interface TrackedOrder {
@@ -112,22 +120,36 @@ export default async function TrackPage({
         <>
           <Separator className="my-8" />
 
+          {order.source === "midtrans" && (
+            <TrackPaymentPoller paymentStatus={order.payment_status} />
+          )}
+
           <div className="mb-6 flex items-center justify-between">
             <div>
               <p className="text-xs text-muted-foreground">Pesanan</p>
               <p className="font-mono text-lg font-semibold">#{shortId}</p>
             </div>
-            <Badge
-              variant={
-                order.status === "completed"
-                  ? "outline"
-                  : order.status === "cancelled"
-                    ? "destructive"
-                    : "default"
-              }
-            >
-              {STATUS_LABEL[order.status] ?? order.status}
-            </Badge>
+            <div className="flex items-center gap-2">
+              {order.source === "midtrans" && (() => {
+                const p = PAYMENT_BADGE[order.payment_status] ?? PAYMENT_BADGE.unpaid
+                return (
+                  <Badge variant="outline" className={p.className}>
+                    {p.label}
+                  </Badge>
+                )
+              })()}
+              <Badge
+                variant={
+                  order.status === "completed"
+                    ? "outline"
+                    : order.status === "cancelled"
+                      ? "destructive"
+                      : "default"
+                }
+              >
+                {STATUS_LABEL[order.status] ?? order.status}
+              </Badge>
+            </div>
           </div>
 
           {/* Items */}
