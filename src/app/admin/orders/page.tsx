@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { OrderStatusSelect } from "@/components/order-status-select";
 import { createClient } from "@/lib/supabase/server";
 import { formatRupiah } from "@/lib/utils";
@@ -26,7 +27,7 @@ const dateFormatter = new Intl.DateTimeFormat("en-GB", {
   timeStyle: "short",
 });
 
-async function getOrders(status?: OrderStatus): Promise<Order[]> {
+async function getOrders(status?: OrderStatus, q?: string): Promise<Order[]> {
   try {
     const supabase = await createClient();
     let query = supabase
@@ -35,7 +36,28 @@ async function getOrders(status?: OrderStatus): Promise<Order[]> {
       .order("created_at", { ascending: false });
     if (status) query = query.eq("status", status);
     const { data } = await query;
-    return (data as Order[] | null) ?? [];
+    let orders = (data as Order[] | null) ?? [];
+
+    // Search by customer name / phone / order ID. Filtered in-memory (the page
+    // already loads the full set); matches the displayed short id (first 8 of
+    // the UUID) and the full UUID by ignoring dashes/case. If order volume
+    // grows, move this to a DB-side search (trigram index or an RPC).
+    if (q) {
+      const needle = q.trim().toLowerCase();
+      const idNeedle = needle.replace(/-/g, "");
+      orders = orders.filter((o) => {
+        const name = (o.customer_name ?? "").toLowerCase();
+        const phone = (o.customer_phone ?? "").toLowerCase();
+        const id = o.id.toLowerCase().replace(/-/g, "");
+        return (
+          name.includes(needle) ||
+          phone.includes(needle) ||
+          id.includes(idNeedle)
+        );
+      });
+    }
+
+    return orders;
   } catch {
     return [];
   }
@@ -49,13 +71,14 @@ function itemsSummary(items: Order["items"]): string {
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; q?: string }>;
 }) {
-  const { status: statusParam } = await searchParams;
+  const { status: statusParam, q: qParam } = await searchParams;
   const status = STATUSES.includes(statusParam as OrderStatus)
     ? (statusParam as OrderStatus)
     : undefined;
-  const orders = await getOrders(status);
+  const q = qParam?.trim() || undefined;
+  const orders = await getOrders(status, q);
 
   return (
     <div className="space-y-6">
@@ -63,9 +86,13 @@ export default async function AdminOrdersPage({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
           <p className="text-muted-foreground text-sm">
-            {status
-              ? <>Filtered by <span className="capitalize font-medium">{status}</span> — <Link href="/admin/orders" className="underline">clear</Link></>
-              : "WhatsApp checkout inquiries from the storefront."}
+            {q ? (
+              <>Search results for <span className="font-medium">“{q}”</span>{status ? <> in <span className="capitalize font-medium">{status}</span></> : null} — <Link href={status ? `/admin/orders?status=${status}` : "/admin/orders"} className="underline">clear</Link></>
+            ) : status ? (
+              <>Filtered by <span className="capitalize font-medium">{status}</span> — <Link href="/admin/orders" className="underline">clear</Link></>
+            ) : (
+              "WhatsApp checkout inquiries from the storefront."
+            )}
           </p>
         </div>
         {orders.length > 0 && (
@@ -78,6 +105,20 @@ export default async function AdminOrdersPage({
           </Button>
         )}
       </div>
+
+      <form method="GET" className="flex gap-2">
+        {status && <input type="hidden" name="status" value={status} />}
+        <Input
+          name="q"
+          type="search"
+          placeholder="Search by name, phone, or order ID…"
+          defaultValue={q ?? ""}
+          className="max-w-sm"
+        />
+        <Button type="submit" variant="outline">
+          Search
+        </Button>
+      </form>
 
       <div className="rounded-lg border">
         <Table>
@@ -97,7 +138,7 @@ export default async function AdminOrdersPage({
                   colSpan={5}
                   className="text-muted-foreground py-10 text-center text-sm"
                 >
-                  No orders yet.
+                  {q ? "No orders match your search." : "No orders yet."}
                 </TableCell>
               </TableRow>
             ) : (
