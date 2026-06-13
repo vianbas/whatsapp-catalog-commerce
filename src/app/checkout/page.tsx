@@ -14,29 +14,31 @@ async function getStoreSettings(): Promise<{
   greeting?: string
   bankAccounts: BankAccount[]
   cashPickupEnabled: boolean
+  qrisMerchantString: string | null
 }> {
   const fallback = process.env.NEXT_PUBLIC_STORE_WHATSAPP_NUMBER ?? "6281234567890"
   try {
     const supabase = await createClient()
     const { data } = await supabase
       .from("store_settings")
-      .select("whatsapp_number, checkout_message_template, bank_accounts, cash_pickup_enabled")
+      .select("whatsapp_number, checkout_message_template, bank_accounts, cash_pickup_enabled, qris_merchant_string")
       .maybeSingle()
     return {
       phone: data?.whatsapp_number ?? fallback,
       greeting: data?.checkout_message_template || undefined,
       bankAccounts: (data?.bank_accounts as BankAccount[] | null) ?? [],
       cashPickupEnabled: data?.cash_pickup_enabled ?? false,
+      qrisMerchantString: data?.qris_merchant_string ?? null,
     }
   } catch {
-    return { phone: fallback, bankAccounts: [], cashPickupEnabled: false }
+    return { phone: fallback, bankAccounts: [], cashPickupEnabled: false, qrisMerchantString: null }
   }
 }
 
 export default async function CheckoutPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const { phone, greeting, bankAccounts, cashPickupEnabled } = await getStoreSettings()
+  const { phone, greeting, bankAccounts, cashPickupEnabled, qrisMerchantString } = await getStoreSettings()
 
   return (
     <main className="mx-auto w-full max-w-lg flex-1 px-6 py-10">
@@ -56,6 +58,7 @@ export default async function CheckoutPage() {
         isLoggedIn={!!user}
         bankAccounts={bankAccounts}
         cashPickupEnabled={cashPickupEnabled}
+        qrisMerchantString={qrisMerchantString}
       />
     </main>
   )

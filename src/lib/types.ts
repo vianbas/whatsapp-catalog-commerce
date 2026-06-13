@@ -58,6 +58,7 @@ export interface StoreSettings {
   checkout_message_template: string | null;
   bank_accounts: BankAccount[];
   cash_pickup_enabled: boolean;
+  qris_merchant_string: string | null;
   created_at: string;
   updated_at: string;
 }

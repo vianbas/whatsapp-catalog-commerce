@@ -5,6 +5,7 @@ import { CheckCircle2, Package } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { QrisDisplay } from "@/components/qris-display"
 import { TrackPaymentPoller } from "@/components/track-payment-poller"
 import { createClient } from "@/lib/supabase/server"
 import { formatRupiah } from "@/lib/utils"
@@ -44,6 +45,7 @@ export default async function OrderConfirmedPage({
   const { id, phone } = await searchParams
 
   let order: ConfirmedOrder | null = null
+  let qrisMerchantString: string | null = null
 
   let bankAccounts: BankAccount[] = []
 
@@ -51,7 +53,10 @@ export default async function OrderConfirmedPage({
     const supabase = await createClient()
     const [orderRes, settingsRes] = await Promise.all([
       supabase.rpc("track_order", { p_phone: phone, p_order_id: id }),
-      supabase.from("store_settings").select("bank_accounts, whatsapp_number").maybeSingle(),
+      supabase
+        .from("store_settings")
+        .select("bank_accounts, whatsapp_number, qris_merchant_string")
+        .maybeSingle(),
     ])
     if (orderRes.data && orderRes.data.length > 0) {
       order = orderRes.data[0] as ConfirmedOrder
@@ -59,6 +64,7 @@ export default async function OrderConfirmedPage({
     if (order?.source === "bank_transfer") {
       bankAccounts = (settingsRes.data?.bank_accounts as BankAccount[] | null) ?? []
     }
+    qrisMerchantString = settingsRes.data?.qris_merchant_string ?? null
   }
 
   const shortId = order
@@ -87,6 +93,19 @@ export default async function OrderConfirmedPage({
         <>
           {order.source === "midtrans" && (
             <TrackPaymentPoller paymentStatus={order.payment_status} />
+          )}
+
+          {order.source === "qris" && qrisMerchantString && (
+            <div className="mb-6 flex flex-col items-center gap-2 rounded-lg border p-6">
+              <p className="mb-2 text-sm font-semibold">Scan untuk membayar</p>
+              <QrisDisplay
+                merchantString={qrisMerchantString}
+                amount={order.total}
+              />
+              <p className="text-muted-foreground mt-2 text-center text-xs">
+                Setelah membayar, konfirmasi ke penjual via WhatsApp agar pesanan segera diproses.
+              </p>
+            </div>
           )}
 
           <div className="mb-6 flex items-center gap-2">

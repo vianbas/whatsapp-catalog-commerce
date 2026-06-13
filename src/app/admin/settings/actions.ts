@@ -23,6 +23,9 @@ function toRow(values: StoreSettingsInput) {
       : null,
     bank_accounts: values.bank_accounts,
     cash_pickup_enabled: values.cash_pickup_enabled,
+    qris_merchant_string: values.qris_merchant_string
+      ? values.qris_merchant_string
+      : null,
   }
 }
 

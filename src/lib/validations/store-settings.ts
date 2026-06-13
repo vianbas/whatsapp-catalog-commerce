@@ -29,6 +29,14 @@ export const storeSettingsSchema = z.object({
     .or(z.literal("")),
   bank_accounts: z.array(bankAccountSchema),
   cash_pickup_enabled: z.boolean(),
+  // Seller pastes their static QRIS string once; the app builds dynamic QRs
+  // with the transaction amount at checkout.
+  qris_merchant_string: z
+    .string()
+    .trim()
+    .max(1024)
+    .optional()
+    .or(z.literal("")),
 })
 
 export type StoreSettingsInput = z.infer<typeof storeSettingsSchema>
