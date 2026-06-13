@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator"
 import { TrackPaymentPoller } from "@/components/track-payment-poller"
 import { createClient } from "@/lib/supabase/server"
 import { formatRupiah } from "@/lib/utils"
-import type { OrderItem, OrderStatus } from "@/lib/types"
+import type { BankAccount, OrderItem, OrderStatus } from "@/lib/types"
 
 export const metadata: Metadata = { title: "Pesanan Diterima" }
 export const dynamic = "force-dynamic"
@@ -45,14 +45,19 @@ export default async function OrderConfirmedPage({
 
   let order: ConfirmedOrder | null = null
 
+  let bankAccounts: BankAccount[] = []
+
   if (id && phone) {
     const supabase = await createClient()
-    const { data } = await supabase.rpc("track_order", {
-      p_phone: phone,
-      p_order_id: id,
-    })
-    if (data && data.length > 0) {
-      order = data[0] as ConfirmedOrder
+    const [orderRes, settingsRes] = await Promise.all([
+      supabase.rpc("track_order", { p_phone: phone, p_order_id: id }),
+      supabase.from("store_settings").select("bank_accounts, whatsapp_number").maybeSingle(),
+    ])
+    if (orderRes.data && orderRes.data.length > 0) {
+      order = orderRes.data[0] as ConfirmedOrder
+    }
+    if (order?.source === "bank_transfer") {
+      bankAccounts = (settingsRes.data?.bank_accounts as BankAccount[] | null) ?? []
     }
   }
 
@@ -141,6 +146,39 @@ export default async function OrderConfirmedPage({
           </div>
 
           <Separator className="my-6" />
+
+          {/* Bank transfer instructions */}
+          {order.source === "bank_transfer" && bankAccounts.length > 0 && (
+            <div className="mb-6 rounded-lg border bg-muted/30 p-4 space-y-3">
+              <p className="text-sm font-semibold">Transfer pembayaran ke salah satu rekening:</p>
+              {bankAccounts.map((acct, i) => (
+                <div key={i} className="text-sm space-y-0.5">
+                  <p className="font-medium">{acct.bank}</p>
+                  <p className="font-mono text-base tracking-wider">{acct.account_number}</p>
+                  <p className="text-muted-foreground text-xs">a.n. {acct.account_holder}</p>
+                </div>
+              ))}
+              <Separator />
+              <div className="flex items-center justify-between text-sm font-semibold">
+                <span>Total transfer</span>
+                <span>{formatRupiah(order.total)}</span>
+              </div>
+              <p className="text-muted-foreground text-xs">
+                Setelah transfer, kirim bukti pembayaran via WhatsApp agar pesanan segera diproses.
+              </p>
+            </div>
+          )}
+
+          {/* Cash pickup instructions */}
+          {order.source === "cash_pickup" && (
+            <div className="mb-6 rounded-lg border bg-muted/30 p-4 space-y-1 text-sm">
+              <p className="font-semibold">Bayar saat ambil barang</p>
+              <p className="text-muted-foreground text-xs">
+                Kami akan konfirmasi waktu dan tempat pengambilan via WhatsApp. Siapkan pembayaran sejumlah{" "}
+                <span className="font-medium text-foreground">{formatRupiah(order.total)}</span>.
+              </p>
+            </div>
+          )}
         </>
       )}
 

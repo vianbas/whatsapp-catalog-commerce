@@ -21,6 +21,8 @@ function toRow(values: StoreSettingsInput) {
     checkout_message_template: values.checkout_message_template
       ? values.checkout_message_template
       : null,
+    bank_accounts: values.bank_accounts,
+    cash_pickup_enabled: values.cash_pickup_enabled,
   }
 }
 
@@ -54,5 +56,6 @@ export async function updateStoreSettings(
   // The WhatsApp number / store identity is read across the storefront.
   revalidatePath("/admin/settings")
   revalidatePath("/checkout")
+  revalidatePath("/")
   revalidatePath("/products/[slug]", "page")
 }

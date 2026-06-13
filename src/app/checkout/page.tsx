@@ -4,31 +4,39 @@ import type { Metadata } from "next"
 import { CheckoutForm } from "@/components/checkout-form"
 import { CartIndicator } from "@/components/cart-indicator"
 import { createClient } from "@/lib/supabase/server"
+import type { BankAccount } from "@/lib/types"
 
 export const metadata: Metadata = { title: "Checkout" }
 export const dynamic = "force-dynamic"
 
-async function getStoreContact(): Promise<{ phone: string; greeting?: string }> {
+async function getStoreSettings(): Promise<{
+  phone: string
+  greeting?: string
+  bankAccounts: BankAccount[]
+  cashPickupEnabled: boolean
+}> {
   const fallback = process.env.NEXT_PUBLIC_STORE_WHATSAPP_NUMBER ?? "6281234567890"
   try {
     const supabase = await createClient()
     const { data } = await supabase
       .from("store_settings")
-      .select("whatsapp_number, checkout_message_template")
+      .select("whatsapp_number, checkout_message_template, bank_accounts, cash_pickup_enabled")
       .maybeSingle()
     return {
       phone: data?.whatsapp_number ?? fallback,
       greeting: data?.checkout_message_template || undefined,
+      bankAccounts: (data?.bank_accounts as BankAccount[] | null) ?? [],
+      cashPickupEnabled: data?.cash_pickup_enabled ?? false,
     }
   } catch {
-    return { phone: fallback }
+    return { phone: fallback, bankAccounts: [], cashPickupEnabled: false }
   }
 }
 
 export default async function CheckoutPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const { phone, greeting } = await getStoreContact()
+  const { phone, greeting, bankAccounts, cashPickupEnabled } = await getStoreSettings()
 
   return (
     <main className="mx-auto w-full max-w-lg flex-1 px-6 py-10">
@@ -42,7 +50,13 @@ export default async function CheckoutPage() {
         </div>
       </div>
 
-      <CheckoutForm phone={phone} greeting={greeting} isLoggedIn={!!user} />
+      <CheckoutForm
+        phone={phone}
+        greeting={greeting}
+        isLoggedIn={!!user}
+        bankAccounts={bankAccounts}
+        cashPickupEnabled={cashPickupEnabled}
+      />
     </main>
   )
 }

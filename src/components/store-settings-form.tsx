@@ -2,12 +2,14 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
+import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { Plus, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { Separator } from "@/components/ui/separator"
 import {
   Form,
   FormControl,
@@ -37,6 +39,11 @@ export function StoreSettingsForm({
     defaultValues,
   })
 
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "bank_accounts",
+  })
+
   async function handleSubmit(values: StoreSettingsInput) {
     setError(null)
     setSaved(false)
@@ -60,6 +67,7 @@ export function StoreSettingsForm({
         onSubmit={form.handleSubmit(handleSubmit)}
         className="max-w-2xl space-y-6"
       >
+        {/* ── Store identity ── */}
         <FormField
           control={form.control}
           name="store_name"
@@ -144,7 +152,121 @@ export function StoreSettingsForm({
           )}
         />
 
-        <div className="flex items-center gap-3">
+        <Separator />
+
+        {/* ── Bank transfer ── */}
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-medium">Bank transfer accounts</h3>
+            <p className="text-muted-foreground text-xs mt-0.5">
+              Add one or more accounts. When at least one is saved, buyers will see a
+              &ldquo;Bank Transfer&rdquo; option at checkout.
+            </p>
+          </div>
+
+          {fields.map((field, index) => (
+            <div
+              key={field.id}
+              className="grid gap-3 rounded-lg border p-4 sm:grid-cols-3"
+            >
+              <FormField
+                control={form.control}
+                name={`bank_accounts.${index}.bank`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs">Bank name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="BCA" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name={`bank_accounts.${index}.account_number`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs">Account number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="1234567890" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name={`bank_accounts.${index}.account_holder`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs">Account holder</FormLabel>
+                    <FormControl>
+                      <Input placeholder="John Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="sm:col-span-3 flex justify-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => remove(index)}
+                >
+                  <Trash2 className="size-3.5 mr-1" aria-hidden />
+                  Remove
+                </Button>
+              </div>
+            </div>
+          ))}
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => append({ bank: "", account_number: "", account_holder: "" })}
+          >
+            <Plus className="size-3.5 mr-1" aria-hidden />
+            Add bank account
+          </Button>
+        </div>
+
+        <Separator />
+
+        {/* ── Cash pickup ── */}
+        <FormField
+          control={form.control}
+          name="cash_pickup_enabled"
+          render={({ field }) => (
+            <FormItem>
+              <div className="flex items-center gap-3">
+                <FormControl>
+                  <input
+                    type="checkbox"
+                    id="cash_pickup_enabled"
+                    checked={field.value}
+                    onChange={field.onChange}
+                    className="size-4 rounded border-gray-300 accent-primary"
+                  />
+                </FormControl>
+                <div>
+                  <FormLabel htmlFor="cash_pickup_enabled" className="cursor-pointer">
+                    Enable cash pickup / bayar di toko
+                  </FormLabel>
+                  <FormDescription>
+                    When enabled, buyers see a &ldquo;Cash Pickup&rdquo; option at checkout.
+                  </FormDescription>
+                </div>
+              </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="flex items-center gap-3 pt-2">
           <Button type="submit" disabled={form.formState.isSubmitting}>
             Save settings
           </Button>

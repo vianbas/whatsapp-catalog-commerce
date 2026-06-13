@@ -1,5 +1,11 @@
 import { z } from "zod"
 
+const bankAccountSchema = z.object({
+  bank: z.string().trim().min(1, "Bank name required").max(60),
+  account_number: z.string().trim().min(1, "Account number required").max(30),
+  account_holder: z.string().trim().min(1, "Account holder required").max(120),
+})
+
 export const storeSettingsSchema = z.object({
   store_name: z.string().trim().min(1, "Store name is required").max(120),
   store_description: z.string().trim().max(2000).optional().or(z.literal("")),
@@ -21,6 +27,8 @@ export const storeSettingsSchema = z.object({
     .max(1000)
     .optional()
     .or(z.literal("")),
+  bank_accounts: z.array(bankAccountSchema),
+  cash_pickup_enabled: z.boolean(),
 })
 
 export type StoreSettingsInput = z.infer<typeof storeSettingsSchema>

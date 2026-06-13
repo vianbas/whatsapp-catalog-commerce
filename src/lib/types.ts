@@ -43,6 +43,12 @@ export interface ProductWithCategory extends Product {
   category: Pick<Category, "id" | "name" | "slug"> | null;
 }
 
+export interface BankAccount {
+  bank: string;
+  account_number: string;
+  account_holder: string;
+}
+
 export interface StoreSettings {
   id: string;
   store_name: string;
@@ -50,6 +56,8 @@ export interface StoreSettings {
   whatsapp_number: string;
   currency: string;
   checkout_message_template: string | null;
+  bank_accounts: BankAccount[];
+  cash_pickup_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -123,5 +131,6 @@ export interface Order {
   courier: string | null;
   tracking_number: string | null;
   stock_released: boolean;
+  payment_proof_url: string | null;
   created_at: string;
 }
