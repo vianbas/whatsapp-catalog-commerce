@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "WhatsApp Catalog Commerce",
     short_name: "WA Catalog",
-    description: "Browse the catalog and order via WhatsApp.",
+    description: "Browse the catalog and pay online via Midtrans.",
     start_url: "/products",
     display: "standalone",
     orientation: "portrait",

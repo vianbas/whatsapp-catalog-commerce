@@ -13,7 +13,7 @@ Repo: https://github.com/vianbas/whatsapp-catalog-commerce
 | Database | Supabase (PostgreSQL + RLS + Storage) |
 | CI | GitHub Actions — typecheck, lint, build, audit (quality gate only) |
 | CD | Cloudflare Builds — auto-deploys on push to `master` |
-| Auth | Supabase Auth (email+password, admin only) |
+| Auth | Supabase Auth (email+password — admin, staff, customer roles) |
 
 ---
 
@@ -75,9 +75,9 @@ Repo: https://github.com/vianbas/whatsapp-catalog-commerce
 
 ## DB Migrations
 
-**Pending:** `db/customer-accounts.sql` — run in Supabase SQL editor before deploying the customer-accounts feature to production.
-
 ### Previously applied ✓
+
+- `db/customer-accounts.sql` — customer role + `store_snap_ids()` RPC (PR #6, merged 2026-06-13)
 
 - `db/stock-decrement.sql` — trigger decrements stock on order insert
 - `db/discount-codes.sql` — discount_codes table + RLS + apply_discount_code() RPC

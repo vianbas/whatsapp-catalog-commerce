@@ -178,7 +178,7 @@ export function CartView({
             total={finalTotal}
             discountCode={discount?.code}
             discountAmount={discountAmount}
-            label="Quick order via WhatsApp"
+            label="Ask via WhatsApp"
             variant="outline"
             className="flex-1"
           />

@@ -114,7 +114,7 @@ export default async function ProductsPage({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Products</h1>
           <p className="text-muted-foreground text-sm">
-            Browse the catalog and order via WhatsApp.
+            Browse the catalog and pay online via Midtrans.
           </p>
         </div>
         <div className="flex items-center gap-4">

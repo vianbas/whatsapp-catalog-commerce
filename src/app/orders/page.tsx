@@ -66,7 +66,7 @@ export default async function CustomerOrdersPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">My Orders</h1>
           <p className="text-muted-foreground text-sm">
-            Your WhatsApp checkout history.
+            Your order history.
           </p>
         </div>
         <Link

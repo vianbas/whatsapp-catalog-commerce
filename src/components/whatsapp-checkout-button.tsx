@@ -7,8 +7,8 @@ import { createOrder } from "@/app/orders/actions"
 import { buildCheckoutUrl, type WhatsappLineItem } from "@/lib/whatsapp"
 
 /**
- * Opens a pre-filled WhatsApp chat with the store, containing an order
- * summary. This is the project's "checkout" — no payment gateway.
+ * Opens a pre-filled WhatsApp chat with the store for questions or order
+ * confirmation. Midtrans is the primary payment path.
  *
  * When `recordOrder` is set, it fires a best-effort `createOrder` on click
  * (not awaited, so it never blocks or interferes with the redirect to
@@ -18,7 +18,7 @@ export function WhatsappCheckoutButton({
   phone,
   items,
   greeting,
-  label = "Order via WhatsApp",
+  label = "Ask via WhatsApp",
   variant = "default",
   recordOrder = false,
   source,

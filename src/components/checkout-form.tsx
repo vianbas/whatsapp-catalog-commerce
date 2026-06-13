@@ -278,7 +278,7 @@ export function CheckoutForm({
 
       <Button type="submit" className="w-full" size="lg" variant="outline" disabled={isSubmitting}>
         <MessageCircle className="size-4" aria-hidden />
-        {isSubmitting ? "Opening WhatsApp…" : `Order via WhatsApp`}
+        {isSubmitting ? "Opening WhatsApp…" : `Ask via WhatsApp`}
       </Button>
 
       {whatsappError && (
@@ -286,7 +286,7 @@ export function CheckoutForm({
       )}
 
       <p className="text-muted-foreground text-center text-xs">
-        Pay online with card, GoPay, QRIS, or bank transfer — or chat first via WhatsApp.
+        Pay securely online via Midtrans. WhatsApp is available for questions or order confirmation.
       </p>
     </form>
   )

@@ -9,7 +9,7 @@ export default function Home() {
       <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center gap-8 px-6 py-24 text-center">
         <span className="bg-muted text-muted-foreground inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium">
           <MessageCircle className="size-3.5" aria-hidden />
-          Checkout via WhatsApp
+          Chat & confirm via WhatsApp
         </span>
 
         <div className="space-y-4">
@@ -17,9 +17,9 @@ export default function Home() {
             A simple catalog storefront for WhatsApp sellers
           </h1>
           <p className="text-muted-foreground mx-auto max-w-xl text-lg">
-            Browse the catalog, pick what you want, and check out by sending a
-            ready-made order straight to the store&apos;s WhatsApp. No accounts,
-            no payment gateway.
+            Browse the catalog, pick what you want, and pay online via Midtrans
+            — card, GoPay, QRIS, or bank transfer. Have a question? Chat with
+            us on WhatsApp anytime.
           </p>
         </div>
 

@@ -37,7 +37,7 @@ Key design decisions:
 | CI | GitHub Actions (typecheck + lint + build + audit) |
 | CD | Cloudflare Builds (auto-deploy on push to `master`) |
 
-> **Next.js 16 breaking changes:** `middleware` is renamed to `proxy` (`src/middleware.ts`), and route `params`/`searchParams`/`cookies()` are all **async**. See `AGENTS.md`.
+> **Next.js 16 breaking changes:** Route `params`/`searchParams`/`cookies()` are all **async**. Next.js 16 prefers `proxy.ts` over `middleware.ts`, but this project intentionally keeps `src/middleware.ts` (Edge-compatible) because `proxy.ts` is Node.js-only and Cloudflare Workers require the Edge runtime. See `AGENTS.md`.
 
 ---
 
@@ -92,7 +92,7 @@ Key design decisions:
 │   ├── middleware.ts            # session refresh + /admin gate
 │   ├── app/
 │   │   ├── page.tsx             # landing
-│   │   ├── login/               # admin sign-in
+│   │   ├── login/               # sign-in (admin, staff, customer)
 │   │   ├── products/            # catalog list + [slug] detail + review action
 │   │   ├── categories/[slug]/   # per-category grid
 │   │   ├── cart/                # cart page
@@ -237,4 +237,4 @@ npm run deploy
 
 - **Problem framing:** turns an existing informal sales channel (WhatsApp) into a structured, shareable catalog without forcing merchants to change how they transact. Midtrans is layered on top as an optional online-payment path.
 - **Engineering highlights:** SECURITY DEFINER RPCs as the boundary between anon/RLS and privileged writes; atomic stock check-and-decrement trigger prevents overselling under concurrent load; `settle_payment` provides idempotent payment + stock reconciliation so webhook and poller can race safely; adapted to Next.js 16 breaking conventions (`proxy.ts` → `middleware.ts`, async params/cookies).
-- **Deliberate scoping:** no shopper accounts (guests only), singleton store settings, admin=authenticated. Each simplification is documented in `PROGRESS.md` with a clear upgrade path.
+- **Deliberate scoping:** singleton store settings, admin=authenticated. Customers can register for an account or check out as guests. Each design decision is documented in `PROGRESS.md` with a clear upgrade path.

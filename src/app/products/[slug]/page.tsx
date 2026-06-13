@@ -44,7 +44,7 @@ export async function generateMetadata({
 
   const description =
     product.description?.slice(0, 200) ??
-    `${product.name} — order via WhatsApp.`;
+    `${product.name} — available in our catalog.`;
   const image = product.images[0];
 
   return {
@@ -258,7 +258,7 @@ export default async function ProductDetailPage({
               items={[{ name: product.name, price: product.price, quantity: 1, product_id: product.id }]}
               disabled={soldOut}
               variant="outline"
-              label={soldOut ? "Sold out" : "Order via WhatsApp"}
+              label={soldOut ? "Sold out" : "Ask via WhatsApp"}
               className="w-full sm:w-auto"
             />
           </div>
