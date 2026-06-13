@@ -4,7 +4,7 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { MessageCircle, ShoppingBag } from "lucide-react"
+import { Building2, MessageCircle, ShoppingBag, Store } from "lucide-react"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
@@ -14,25 +14,46 @@ import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { MidtransCheckoutButton } from "@/components/midtrans-checkout-button"
 import { clearCart, useCart } from "@/lib/cart"
-import { formatRupiah } from "@/lib/utils"
+import { cn, formatRupiah } from "@/lib/utils"
 import { buildCheckoutUrl } from "@/lib/whatsapp"
 import { createOrder } from "@/app/orders/actions"
 import { checkoutFormSchema, type CheckoutFormValues } from "@/lib/validations/order"
+import type { BankAccount } from "@/lib/types"
+
+const MIDTRANS_KEY = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY ?? ""
+
+type PaymentMethod = "midtrans" | "bank_transfer" | "cash_pickup" | "whatsapp"
+
+function defaultMethod(
+  bankAccounts: BankAccount[],
+  cashPickupEnabled: boolean
+): PaymentMethod {
+  if (MIDTRANS_KEY) return "midtrans"
+  if (bankAccounts.length > 0) return "bank_transfer"
+  if (cashPickupEnabled) return "cash_pickup"
+  return "whatsapp"
+}
 
 export function CheckoutForm({
   phone,
   greeting,
   isLoggedIn = false,
+  bankAccounts = [],
+  cashPickupEnabled = false,
 }: {
   phone: string
   greeting?: string
   isLoggedIn?: boolean
+  bankAccounts?: BankAccount[]
+  cashPickupEnabled?: boolean
 }) {
   const { items, count, total } = useCart()
   const router = useRouter()
 
-  const [midtransError, setMidtransError] = React.useState<string | null>(null)
-  const [whatsappError, setWhatsappError] = React.useState<string | null>(null)
+  const [paymentMethod, setPaymentMethod] = React.useState<PaymentMethod>(
+    () => defaultMethod(bankAccounts, cashPickupEnabled)
+  )
+  const [submitError, setSubmitError] = React.useState<string | null>(null)
 
   const {
     register,
@@ -54,25 +75,65 @@ export function CheckoutForm({
     )
   }
 
-  function buildCartItems() {
-    return {
-      whatsappItems: items.map((i) => ({
-        name: i.name,
-        price: i.price,
-        quantity: i.quantity,
-        product_id: i.id,
-      })),
-    }
+  function buildItems() {
+    return items.map((i) => ({
+      name: i.name,
+      price: i.price,
+      quantity: i.quantity,
+      product_id: i.id,
+    }))
+  }
+
+  function redirectAfter(orderId: string, phone: string) {
+    return isLoggedIn
+      ? `/orders/${orderId}`
+      : `/order-confirmed?id=${orderId}&phone=${encodeURIComponent(phone)}`
+  }
+
+  async function onBankTransferSubmit(values: CheckoutFormValues) {
+    setSubmitError(null)
+    const orderId = crypto.randomUUID()
+    const result = await createOrder({
+      id: orderId,
+      items: buildItems(),
+      total,
+      source: "bank_transfer",
+      customer_name: values.name,
+      customer_phone: values.phone,
+      customer_email: values.email || undefined,
+      customer_address: values.address || undefined,
+      notes: values.notes || undefined,
+    })
+    if (result && "error" in result) { setSubmitError(result.error); return }
+    clearCart()
+    router.push(redirectAfter(orderId, values.phone))
+  }
+
+  async function onCashPickupSubmit(values: CheckoutFormValues) {
+    setSubmitError(null)
+    const orderId = crypto.randomUUID()
+    const result = await createOrder({
+      id: orderId,
+      items: buildItems(),
+      total,
+      source: "cash_pickup",
+      customer_name: values.name,
+      customer_phone: values.phone,
+      customer_email: values.email || undefined,
+      customer_address: values.address || undefined,
+      notes: values.notes || undefined,
+    })
+    if (result && "error" in result) { setSubmitError(result.error); return }
+    clearCart()
+    router.push(redirectAfter(orderId, values.phone))
   }
 
   async function onWhatsAppSubmit(values: CheckoutFormValues) {
-    setWhatsappError(null)
-    const { whatsappItems } = buildCartItems()
+    setSubmitError(null)
     const orderId = crypto.randomUUID()
-
     const result = await createOrder({
       id: orderId,
-      items: whatsappItems,
+      items: buildItems(),
       total,
       source: "checkout",
       customer_name: values.name,
@@ -81,41 +142,29 @@ export function CheckoutForm({
       customer_address: values.address || undefined,
       notes: values.notes || undefined,
     })
-
-    if (result && "error" in result) {
-      setWhatsappError(result.error)
-      return
-    }
-
+    if (result && "error" in result) { setSubmitError(result.error); return }
     const url = buildCheckoutUrl({
       phone,
       greeting,
-      items: whatsappItems,
+      items: buildItems(),
       total,
       customerName: values.name,
       customerPhone: values.phone,
       customerAddress: values.address || undefined,
       notes: values.notes || undefined,
     })
-
     clearCart()
     window.open(url, "_blank", "noopener,noreferrer")
-    router.push(
-      isLoggedIn
-        ? "/orders"
-        : `/order-confirmed?id=${orderId}&phone=${encodeURIComponent(values.phone)}`
-    )
+    router.push(redirectAfter(orderId, values.phone))
   }
 
   async function onMidtransSubmit(values: CheckoutFormValues) {
-    setMidtransError(null)
-    const { whatsappItems } = buildCartItems()
-
+    setSubmitError(null)
     const res = await fetch("/api/midtrans/snap-token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        items: whatsappItems,
+        items: buildItems(),
         total,
         source: "midtrans",
         customer_name: values.name,
@@ -125,46 +174,64 @@ export function CheckoutForm({
         notes: values.notes || undefined,
       }),
     })
-
     if (!res.ok) {
       const body = await res.json().catch(() => ({})) as { error?: string }
-      setMidtransError(body.error ?? "Payment setup failed. Please try again.")
+      setSubmitError(body.error ?? "Payment setup failed. Please try again.")
       return
     }
-
-    const { snapToken, orderId } = (await res.json()) as {
-      snapToken: string
-      orderId: string
-    }
-
+    const { snapToken, orderId } = (await res.json()) as { snapToken: string; orderId: string }
     window.snap?.pay(snapToken, {
-      onSuccess: () => {
-        clearCart()
-        router.push(
-          isLoggedIn
-            ? `/orders/${orderId}?processing=1`
-            : `/order-confirmed?id=${orderId}&phone=${encodeURIComponent(values.phone)}`
-        )
-      },
-      onPending: () => {
-        clearCart()
-        router.push(
-          isLoggedIn
-            ? `/orders/${orderId}?processing=1`
-            : `/order-confirmed?id=${orderId}&phone=${encodeURIComponent(values.phone)}`
-        )
-      },
-      onError: () => {
-        setMidtransError("Payment failed. Please try again.")
-      },
-      onClose: () => {
-        setMidtransError("Payment cancelled. You can try again whenever you're ready.")
-      },
+      onSuccess: () => { clearCart(); router.push(redirectAfter(orderId, values.phone)) },
+      onPending: () => { clearCart(); router.push(redirectAfter(orderId, values.phone)) },
+      onError: () => setSubmitError("Payment failed. Please try again."),
+      onClose: () => setSubmitError("Payment cancelled. You can try again whenever you're ready."),
     })
   }
 
+  function getSubmitHandler() {
+    switch (paymentMethod) {
+      case "bank_transfer": return handleSubmit(onBankTransferSubmit)
+      case "cash_pickup":   return handleSubmit(onCashPickupSubmit)
+      case "whatsapp":      return handleSubmit(onWhatsAppSubmit)
+      case "midtrans":      return handleSubmit(onMidtransSubmit)
+    }
+  }
+
+  const methods: { id: PaymentMethod; label: string; description: string; icon: React.ReactNode; show: boolean }[] = [
+    {
+      id: "midtrans",
+      label: "Pay Online",
+      description: "Card, GoPay, QRIS, bank transfer via Midtrans",
+      icon: <ShoppingBag className="size-4" aria-hidden />,
+      show: !!MIDTRANS_KEY,
+    },
+    {
+      id: "bank_transfer",
+      label: "Bank Transfer",
+      description: "Transfer to our account, we confirm manually",
+      icon: <Building2 className="size-4" aria-hidden />,
+      show: bankAccounts.length > 0,
+    },
+    {
+      id: "cash_pickup",
+      label: "Cash Pickup / Bayar di Toko",
+      description: "Pick up and pay in person",
+      icon: <Store className="size-4" aria-hidden />,
+      show: cashPickupEnabled,
+    },
+    {
+      id: "whatsapp",
+      label: "Ask via WhatsApp",
+      description: "Send your order details and arrange payment via chat",
+      icon: <MessageCircle className="size-4" aria-hidden />,
+      show: true,
+    },
+  ]
+
+  const visibleMethods = methods.filter((m) => m.show)
+
   return (
-    <form onSubmit={handleSubmit(onWhatsAppSubmit)} className="space-y-8">
+    <form onSubmit={getSubmitHandler()} className="space-y-8">
       {/* Order summary */}
       <div className="rounded-lg border">
         <div className="divide-y">
@@ -224,7 +291,10 @@ export function CheckoutForm({
 
         <div className="space-y-1.5">
           <Label htmlFor="email">
-            Email <span className="text-muted-foreground text-xs font-normal">(optional — for order confirmation)</span>
+            Email{" "}
+            <span className="text-muted-foreground text-xs font-normal">
+              (optional — for order confirmation)
+            </span>
           </Label>
           <Input
             id="email"
@@ -260,29 +330,96 @@ export function CheckoutForm({
         </div>
       </div>
 
-      <MidtransCheckoutButton
-        onClick={handleSubmit(onMidtransSubmit)}
-        disabled={isSubmitting}
-      />
-
-      {midtransError && (
-        <p className="text-destructive text-center text-sm">{midtransError}</p>
-      )}
-
-      <div className="relative">
-        <Separator />
-        <span className="bg-background text-muted-foreground absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-2 text-xs">
-          or
-        </span>
+      {/* Payment method */}
+      <div className="space-y-3">
+        <h2 className="text-base font-semibold">Payment method</h2>
+        <div className="space-y-2">
+          {visibleMethods.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => setPaymentMethod(m.id)}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors",
+                paymentMethod === m.id
+                  ? "border-primary bg-primary/5"
+                  : "hover:bg-muted/50"
+              )}
+            >
+              <span
+                className={cn(
+                  "flex size-4 shrink-0 items-center justify-center rounded-full border-2",
+                  paymentMethod === m.id
+                    ? "border-primary bg-primary"
+                    : "border-muted-foreground"
+                )}
+              />
+              <span className="text-muted-foreground shrink-0">{m.icon}</span>
+              <div className="min-w-0">
+                <p className="text-sm font-medium">{m.label}</p>
+                <p className="text-muted-foreground text-xs">{m.description}</p>
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
 
-      <Button type="submit" className="w-full" size="lg" variant="outline" disabled={isSubmitting}>
-        <MessageCircle className="size-4" aria-hidden />
-        {isSubmitting ? "Opening WhatsApp…" : `Ask via WhatsApp`}
-      </Button>
+      {/* Bank account preview when bank transfer selected */}
+      {paymentMethod === "bank_transfer" && bankAccounts.length > 0 && (
+        <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+          <p className="text-sm font-medium">Transfer to one of these accounts:</p>
+          {bankAccounts.map((acct, i) => (
+            <div key={i} className="text-sm space-y-0.5">
+              <p className="font-medium">{acct.bank}</p>
+              <p className="font-mono text-base tracking-wider">{acct.account_number}</p>
+              <p className="text-muted-foreground">a.n. {acct.account_holder}</p>
+            </div>
+          ))}
+          <p className="text-muted-foreground text-xs pt-1">
+            Please transfer the exact amount ({formatRupiah(total)}) and contact us via WhatsApp with your proof of payment.
+          </p>
+        </div>
+      )}
 
-      {whatsappError && (
-        <p className="text-destructive text-center text-sm">{whatsappError}</p>
+      {/* Cash pickup info */}
+      {paymentMethod === "cash_pickup" && (
+        <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-1">
+          <p className="font-medium">Cash payment at pickup</p>
+          <p className="text-muted-foreground text-xs">
+            Place your order now and pay cash when you collect the item. We&apos;ll confirm the details via WhatsApp.
+          </p>
+        </div>
+      )}
+
+      {submitError && (
+        <p className="text-destructive text-center text-sm">{submitError}</p>
+      )}
+
+      {/* Submit button */}
+      {paymentMethod === "midtrans" ? (
+        <MidtransCheckoutButton
+          onClick={handleSubmit(onMidtransSubmit)}
+          disabled={isSubmitting}
+        />
+      ) : (
+        <Button
+          type="submit"
+          className="w-full"
+          size="lg"
+          disabled={isSubmitting}
+          variant={paymentMethod === "whatsapp" ? "outline" : "default"}
+        >
+          {paymentMethod === "whatsapp" && <MessageCircle className="size-4" aria-hidden />}
+          {paymentMethod === "bank_transfer" && <Building2 className="size-4" aria-hidden />}
+          {paymentMethod === "cash_pickup" && <Store className="size-4" aria-hidden />}
+          {isSubmitting
+            ? "Placing order…"
+            : paymentMethod === "whatsapp"
+              ? "Ask via WhatsApp"
+              : paymentMethod === "bank_transfer"
+                ? "Place Order — Bank Transfer"
+                : "Place Order — Cash Pickup"}
+        </Button>
       )}
 
       <p className="text-muted-foreground text-center text-xs">
