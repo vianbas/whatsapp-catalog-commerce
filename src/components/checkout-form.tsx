@@ -4,14 +4,14 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Building2, MessageCircle, ShoppingBag, Store } from "lucide-react"
+import { Building2, MessageCircle, QrCode, ShoppingBag, Store } from "lucide-react"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
+import { Textarea } from "@/components/ui/textarea"
 import { MidtransCheckoutButton } from "@/components/midtrans-checkout-button"
 import { clearCart, useCart } from "@/lib/cart"
 import { cn, formatRupiah } from "@/lib/utils"
@@ -22,15 +22,17 @@ import type { BankAccount } from "@/lib/types"
 
 const MIDTRANS_KEY = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY ?? ""
 
-type PaymentMethod = "midtrans" | "bank_transfer" | "cash_pickup" | "whatsapp"
+type PaymentMethod = "midtrans" | "bank_transfer" | "cash_pickup" | "qris" | "whatsapp"
 
 function defaultMethod(
   bankAccounts: BankAccount[],
-  cashPickupEnabled: boolean
+  cashPickupEnabled: boolean,
+  qrisEnabled: boolean
 ): PaymentMethod {
   if (MIDTRANS_KEY) return "midtrans"
   if (bankAccounts.length > 0) return "bank_transfer"
   if (cashPickupEnabled) return "cash_pickup"
+  if (qrisEnabled) return "qris"
   return "whatsapp"
 }
 
@@ -40,18 +42,22 @@ export function CheckoutForm({
   isLoggedIn = false,
   bankAccounts = [],
   cashPickupEnabled = false,
+  qrisMerchantString,
 }: {
   phone: string
   greeting?: string
   isLoggedIn?: boolean
   bankAccounts?: BankAccount[]
   cashPickupEnabled?: boolean
+  qrisMerchantString?: string | null
 }) {
   const { items, count, total } = useCart()
   const router = useRouter()
 
+  const qrisEnabled = Boolean(qrisMerchantString)
+
   const [paymentMethod, setPaymentMethod] = React.useState<PaymentMethod>(
-    () => defaultMethod(bankAccounts, cashPickupEnabled)
+    () => defaultMethod(bankAccounts, cashPickupEnabled, qrisEnabled)
   )
   const [submitError, setSubmitError] = React.useState<string | null>(null)
 
@@ -128,6 +134,25 @@ export function CheckoutForm({
     router.push(redirectAfter(orderId, values.phone))
   }
 
+  async function onQrisSubmit(values: CheckoutFormValues) {
+    setSubmitError(null)
+    const orderId = crypto.randomUUID()
+    const result = await createOrder({
+      id: orderId,
+      items: buildItems(),
+      total,
+      source: "qris",
+      customer_name: values.name,
+      customer_phone: values.phone,
+      customer_email: values.email || undefined,
+      customer_address: values.address || undefined,
+      notes: values.notes || undefined,
+    })
+    if (result && "error" in result) { setSubmitError(result.error); return }
+    clearCart()
+    router.push(redirectAfter(orderId, values.phone))
+  }
+
   async function onWhatsAppSubmit(values: CheckoutFormValues) {
     setSubmitError(null)
     const orderId = crypto.randomUUID()
@@ -192,6 +217,7 @@ export function CheckoutForm({
     switch (paymentMethod) {
       case "bank_transfer": return handleSubmit(onBankTransferSubmit)
       case "cash_pickup":   return handleSubmit(onCashPickupSubmit)
+      case "qris":          return handleSubmit(onQrisSubmit)
       case "whatsapp":      return handleSubmit(onWhatsAppSubmit)
       case "midtrans":      return handleSubmit(onMidtransSubmit)
     }
@@ -220,6 +246,13 @@ export function CheckoutForm({
       show: cashPickupEnabled,
     },
     {
+      id: "qris",
+      label: "QRIS",
+      description: "Scan kode QR — GoPay, OVO, Dana, m-banking",
+      icon: <QrCode className="size-4" aria-hidden />,
+      show: qrisEnabled,
+    },
+    {
       id: "whatsapp",
       label: "Ask via WhatsApp",
       description: "Send your order details and arrange payment via chat",
@@ -236,7 +269,10 @@ export function CheckoutForm({
       <div className="rounded-lg border">
         <div className="divide-y">
           {items.map((item) => (
-            <div key={item.id} className="flex items-center justify-between px-4 py-3 text-sm">
+            <div
+              key={item.id}
+              className="flex items-center justify-between px-4 py-3 text-sm"
+            >
               <span className="text-muted-foreground">
                 {item.name}{" "}
                 <span className="text-foreground font-medium">×{item.quantity}</span>
@@ -250,7 +286,9 @@ export function CheckoutForm({
         <Separator />
         <div className="flex items-center justify-between px-4 py-3">
           <span className="text-sm font-semibold">Total</span>
-          <span className="text-lg font-semibold tabular-nums">{formatRupiah(total)}</span>
+          <span className="text-lg font-semibold tabular-nums">
+            {formatRupiah(total)}
+          </span>
         </div>
       </div>
 
@@ -412,13 +450,16 @@ export function CheckoutForm({
           {paymentMethod === "whatsapp" && <MessageCircle className="size-4" aria-hidden />}
           {paymentMethod === "bank_transfer" && <Building2 className="size-4" aria-hidden />}
           {paymentMethod === "cash_pickup" && <Store className="size-4" aria-hidden />}
+          {paymentMethod === "qris" && <QrCode className="size-4" aria-hidden />}
           {isSubmitting
             ? "Placing order…"
             : paymentMethod === "whatsapp"
               ? "Ask via WhatsApp"
               : paymentMethod === "bank_transfer"
                 ? "Place Order — Bank Transfer"
-                : "Place Order — Cash Pickup"}
+                : paymentMethod === "cash_pickup"
+                  ? "Place Order — Cash Pickup"
+                  : "Place Order — QRIS"}
         </Button>
       )}
 

@@ -8,8 +8,8 @@ import { Plus, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Form,
   FormControl,
@@ -261,6 +261,40 @@ export function StoreSettingsForm({
                   </FormDescription>
                 </div>
               </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <Separator />
+
+        {/* ── QRIS ── */}
+        <div>
+          <h3 className="text-sm font-medium">Pembayaran QRIS</h3>
+          <p className="text-muted-foreground text-xs mt-0.5">
+            Tempel string QRIS statis dari aplikasi GoPay/OVO/Dana/m-banking Anda.
+            Aplikasi akan otomatis membuat kode QR dinamis dengan nominal yang tepat saat checkout.
+          </p>
+        </div>
+
+        <FormField
+          control={form.control}
+          name="qris_merchant_string"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>String merchant QRIS</FormLabel>
+              <FormControl>
+                <Textarea
+                  rows={4}
+                  placeholder="000201010212..."
+                  className="font-mono text-xs"
+                  {...field}
+                  value={field.value ?? ""}
+                />
+              </FormControl>
+              <FormDescription>
+                Kosongkan jika tidak menggunakan QRIS. Hanya string EMV QCO (mulai dengan 000201).
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
