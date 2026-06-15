@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { PaymentRetryButton } from "@/components/payment-retry-button"
 import { PaymentProcessingPoller } from "@/components/payment-processing-poller"
+import { TrackingTimeline } from "@/components/tracking-timeline"
 import { createClient } from "@/lib/supabase/server"
 import { formatRupiah } from "@/lib/utils"
 import type { Order, OrderStatus } from "@/lib/types"
@@ -248,6 +249,12 @@ export default async function CustomerOrderDetailPage({
                 </div>
               )}
             </dl>
+            {order.courier && order.tracking_number && (
+              <TrackingTimeline
+                courier={order.courier}
+                trackingNumber={order.tracking_number}
+              />
+            )}
           </div>
         </>
       )}

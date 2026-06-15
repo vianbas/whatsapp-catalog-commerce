@@ -59,6 +59,7 @@ export interface StoreSettings {
   bank_accounts: BankAccount[];
   cash_pickup_enabled: boolean;
   qris_merchant_string: string | null;
+  tracking_api_key: string | null;
   created_at: string;
   updated_at: string;
 }

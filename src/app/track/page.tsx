@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { TrackPaymentPoller } from "@/components/track-payment-poller"
+import { TrackingTimeline } from "@/components/tracking-timeline"
 import { createClient } from "@/lib/supabase/server"
 import { formatRupiah } from "@/lib/utils"
 import type { OrderItem, OrderStatus } from "@/lib/types"
@@ -182,7 +183,7 @@ export default async function TrackPage({
               <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Pengiriman
               </h2>
-              <dl className="space-y-1.5 text-sm">
+              <dl className="space-y-1.5 text-sm mb-3">
                 {order.courier && (
                   <div className="flex gap-2">
                     <dt className="w-20 shrink-0 text-muted-foreground">Kurir</dt>
@@ -196,6 +197,12 @@ export default async function TrackPage({
                   </div>
                 )}
               </dl>
+              {order.courier && order.tracking_number && (
+                <TrackingTimeline
+                  courier={order.courier}
+                  trackingNumber={order.tracking_number}
+                />
+              )}
             </div>
           )}
         </>

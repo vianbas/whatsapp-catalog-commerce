@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import { OrderStatusSelect } from "@/components/order-status-select";
 import { OrderTrackingForm } from "@/components/order-tracking-form";
+import { TrackingTimeline } from "@/components/tracking-timeline";
 import { createClient } from "@/lib/supabase/server";
 import { formatRupiah } from "@/lib/utils";
 import type { Order } from "@/lib/types";
@@ -153,7 +154,7 @@ export default async function OrderDetailPage({
           <div className="border-t pt-4 space-y-3">
             <p className="text-sm font-medium">Shipping tracking</p>
             {(order.courier || order.tracking_number) && (
-              <div className="text-sm space-y-1 mb-3">
+              <div className="text-sm space-y-1">
                 {order.courier && (
                   <p><span className="text-muted-foreground">Courier: </span>{order.courier}</p>
                 )}
@@ -163,6 +164,12 @@ export default async function OrderDetailPage({
                   </p>
                 )}
               </div>
+            )}
+            {order.courier && order.tracking_number && (
+              <TrackingTimeline
+                courier={order.courier}
+                trackingNumber={order.tracking_number}
+              />
             )}
             <OrderTrackingForm
               orderId={order.id}

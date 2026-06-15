@@ -37,6 +37,13 @@ export const storeSettingsSchema = z.object({
     .max(1024)
     .optional()
     .or(z.literal("")),
+  // Binderbyte API key for live expedition tracking on /track and /orders/[id].
+  tracking_api_key: z
+    .string()
+    .trim()
+    .max(256)
+    .optional()
+    .or(z.literal("")),
 })
 
 export type StoreSettingsInput = z.infer<typeof storeSettingsSchema>

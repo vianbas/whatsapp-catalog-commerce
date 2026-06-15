@@ -42,6 +42,7 @@ export default async function AdminSettingsPage() {
     bank_accounts: settings?.bank_accounts ?? [],
     cash_pickup_enabled: settings?.cash_pickup_enabled ?? false,
     qris_merchant_string: settings?.qris_merchant_string ?? "",
+    tracking_api_key: settings?.tracking_api_key ?? "",
   };
 
   return (

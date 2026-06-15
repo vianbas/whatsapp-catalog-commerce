@@ -26,6 +26,9 @@ function toRow(values: StoreSettingsInput) {
     qris_merchant_string: values.qris_merchant_string
       ? values.qris_merchant_string
       : null,
+    tracking_api_key: values.tracking_api_key
+      ? values.tracking_api_key
+      : null,
   }
 }
 

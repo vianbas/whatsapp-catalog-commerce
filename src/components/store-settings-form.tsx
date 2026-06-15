@@ -300,6 +300,40 @@ export function StoreSettingsForm({
           )}
         />
 
+        <Separator />
+
+        {/* ── Expedition tracking ── */}
+        <div>
+          <h3 className="text-sm font-medium">Lacak ekspedisi (Binderbyte)</h3>
+          <p className="text-muted-foreground text-xs mt-0.5">
+            Masukkan API key Binderbyte agar pembeli bisa melihat timeline pengiriman langsung
+            di halaman lacak pesanan dan detail pesanan. Kosongkan untuk menonaktifkan.
+          </p>
+        </div>
+
+        <FormField
+          control={form.control}
+          name="tracking_api_key"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Binderbyte API key</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="••••••••••••••••••••••••••••••••"
+                  {...field}
+                  value={field.value ?? ""}
+                />
+              </FormControl>
+              <FormDescription>
+                Dapatkan API key di{" "}
+                <span className="font-mono text-xs">binderbyte.com</span>.
+                Dukung 20+ kurir Indonesia (JNE, J&T, SiCepat, Pos, dll).
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <div className="flex items-center gap-3 pt-2">
           <Button type="submit" disabled={form.formState.isSubmitting}>
             Save settings
